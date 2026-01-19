@@ -185,8 +185,8 @@ func GetDepartures(data []byte) []models.Departure {
 		departure := models.Departure{
 			TripId:        row["trip_id"],
 			StopId:        row["stop_id"],
-			ArrivalTime:   parseGTFSTime(row["arrival_time"]),
-			DepartureTime: parseGTFSTime(row["departure_time"]),
+			ArrivalTime:   row["arrival_time"],
+			DepartureTime: row["departure_time"],
 			StopSequence:  parseInt(row["stop_sequence"]),
 			PickupType:    models.PickupOrDropoff(parseUint(row["pickup_type"])),
 			DropoffType:   models.PickupOrDropoff(parseUint(row["drop_off_type"])),

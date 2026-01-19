@@ -105,8 +105,8 @@ type Trip struct {
 type Departure struct {
 	TripId        string
 	StopId        string
-	ArrivalTime   int64
-	DepartureTime int64
+	ArrivalTime   string
+	DepartureTime string
 	StopSequence  int
 	PickupType    PickupOrDropoff
 	DropoffType   PickupOrDropoff
