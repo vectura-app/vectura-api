@@ -65,6 +65,8 @@ func preloadCityData() {
 			Shapes:        parser.GetShapes(data),
 		}
 
+		parser.ClearInterner()
+
 		cityDataMutex.Lock()
 		cityData[city.ID] = gtfs
 		cityDataMutex.Unlock()

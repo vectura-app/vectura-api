@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/csv"
+	"io"
 	"io/fs"
 	"sort"
 	"strconv"
@@ -28,28 +29,61 @@ func gostfu(err error) {
 	}
 }
 
-func parseCSV(file fs.File) []map[string]string {
+// Optimization: Pre-allocate map to avoid resizing if possible,
+// though global maps can be dangerous for memory leaks if not cleared.
+var interner = make(map[string]string, 10000)
+
+func ClearInterner() {
+	// Re-make rather than range-delete for speed
+	interner = make(map[string]string)
+}
+
+func intern(s string) string {
+	if v, ok := interner[s]; ok {
+		return v
+	}
+	// Make a copy of the string to avoid pinning the underlying CSV buffer
+	// if we are using ReuseRecord (which we will).
+	sCopy := strings.Clone(s)
+	interner[sCopy] = sCopy
+	return sCopy
+}
+
+func parseCSV(file fs.File, callback func(record []string, idxMap map[string]int)) {
 	reader := csv.NewReader(file)
+
+	reader.ReuseRecord = true
 	reader.LazyQuotes = true
-	records, err := reader.ReadAll()
-	gostfu(err)
 
-	if len(records) == 0 {
-		return nil // or return []map[string]string{} if you prefer an empty slice
+	header, err := reader.Read()
+	if err != nil {
+		return
 	}
 
-	header := records[0]
-	var csvfile []map[string]string
+	idxMap := make(map[string]int, len(header))
+	for i, h := range header {
+		idxMap[h] = i // Use raw header name
+		// If headers might have BOM or whitespace, trim here:
+		// idxMap[strings.TrimSpace(h)] = i
+	}
 
-	for _, record := range records[1:] {
-		row := make(map[string]string)
-		for i, value := range record {
-			row[header[i]] = value
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
 		}
-		csvfile = append(csvfile, row)
-	}
+		gostfu(err)
 
-	return csvfile
+		callback(record, idxMap)
+	}
+}
+
+// Helper to safely get a value from the slice using the index map
+func getVal(record []string, idxMap map[string]int, key string) string {
+	if idx, ok := idxMap[key]; ok && idx < len(record) {
+		return record[idx]
+	}
+	return ""
 }
 
 func parseFloat(s string) float64 {
@@ -58,6 +92,9 @@ func parseFloat(s string) float64 {
 }
 
 func parseUint(s string) uint8 {
+	if s == "" {
+		return 0
+	}
 	v, _ := strconv.ParseUint(s, 10, 8)
 	return uint8(v)
 }
@@ -86,28 +123,27 @@ func GetStops(data []byte) []models.Stop {
 	gostfu(err)
 
 	file, _ := zipReader.Open("stops.txt")
-
-	parsedfile := parseCSV(file)
+	defer file.Close()
 
 	var stops []models.Stop
 
-	for _, row := range parsedfile {
+	parseCSV(file, func(row []string, idx map[string]int) {
 		stop := models.Stop{
-			StopId:             row["stop_id"],
-			StopCode:           row["stop_code"],
-			StopName:           row["stop_name"],
-			StopLat:            parseFloat(row["stop_lat"]),
-			StopLon:            parseFloat(row["stop_lon"]),
-			StopUrl:            row["stop_url"],
-			ZoneId:             row["zone_id"],
-			ParentStation:      row["parent_station"],
-			PlatformCode:       row["platform_code"],
-			WheelchairBoarding: models.Accessibility(parseUint(row["wheelchair_boarding"])),
-			LocationType:       models.Location(parseUint(row["location_type"])),
+			StopId:             intern(getVal(row, idx, "stop_id")),
+			StopCode:           intern(getVal(row, idx, "stop_code")),
+			StopName:           intern(getVal(row, idx, "stop_name")),
+			StopLat:            parseFloat(getVal(row, idx, "stop_lat")),
+			StopLon:            parseFloat(getVal(row, idx, "stop_lon")),
+			StopUrl:            intern(getVal(row, idx, "stop_url")),
+			ZoneId:             intern(getVal(row, idx, "zone_id")),
+			ParentStation:      intern(getVal(row, idx, "parent_station")),
+			PlatformCode:       intern(getVal(row, idx, "platform_code")),
+			WheelchairBoarding: models.Accessibility(parseUint(getVal(row, idx, "wheelchair_boarding"))),
+			LocationType:       models.Location(parseUint(getVal(row, idx, "location_type"))),
 		}
 
 		stops = append(stops, stop)
-	}
+	})
 
 	return stops
 }
@@ -117,26 +153,25 @@ func GetRoutes(data []byte) []models.Route {
 	gostfu(err)
 
 	file, _ := zipReader.Open("routes.txt")
-
-	parsedfile := parseCSV(file)
+	defer file.Close()
 
 	var routes []models.Route
 
-	for _, row := range parsedfile {
+	parseCSV(file, func(row []string, idx map[string]int) {
 		route := models.Route{
-			RouteId:          row["route_id"],
-			AgencyId:         row["agency_id"],
-			RouteShortName:   row["route_short_name"],
-			RouteLongName:    row["route_long_name"],
-			RouteDescription: row["route_desc"],
-			RouteType:        models.Type(parseUint(row["route_type"])),
-			RouteUrl:         row["route_url"],
-			RouteColor:       row["route_color"],
-			RouteTextColor:   row["route_text_color"],
+			RouteId:          intern(getVal(row, idx, "route_id")),
+			AgencyId:         intern(getVal(row, idx, "agency_id")),
+			RouteShortName:   intern(getVal(row, idx, "route_short_name")),
+			RouteLongName:    intern(getVal(row, idx, "route_long_name")),
+			RouteDescription: intern(getVal(row, idx, "route_desc")),
+			RouteType:        models.Type(parseUint(getVal(row, idx, "route_type"))),
+			RouteUrl:         intern(getVal(row, idx, "route_url")),
+			RouteColor:       intern(getVal(row, idx, "route_color")),
+			RouteTextColor:   intern(getVal(row, idx, "route_text_color")),
 		}
 
 		routes = append(routes, route)
-	}
+	})
 
 	return routes
 }
@@ -146,27 +181,26 @@ func GetTrips(data []byte) []models.Trip {
 	gostfu(err)
 
 	file, _ := zipReader.Open("trips.txt")
-
-	parsedfile := parseCSV(file)
+	defer file.Close()
 
 	var trips []models.Trip
 
-	for _, row := range parsedfile {
+	parseCSV(file, func(row []string, idx map[string]int) {
 		trip := models.Trip{
-			TripId:               row["trip_id"],
-			RouteId:              row["route_id"],
-			ServiceId:            row["service_id"],
-			BlockId:              row["block_id"],
-			TripHeadsign:         row["trip_headsign"],
-			TripShortName:        row["trip_short_name"],
-			DirectionId:          models.Direction(parseUint(row["direction_id"])),
-			ShapeId:              row["shape_id"],
-			WheelchairAccessible: models.Accessibility(parseUint(row["wheelchair_accessible"])),
-			BikeAccessible:       models.Accessibility(parseUint(row["bikes_allowed"])),
+			TripId:               intern(getVal(row, idx, "trip_id")),
+			RouteId:              intern(getVal(row, idx, "route_id")),
+			ServiceId:            intern(getVal(row, idx, "service_id")),
+			BlockId:              intern(getVal(row, idx, "block_id")),
+			TripHeadsign:         intern(getVal(row, idx, "trip_headsign")),
+			TripShortName:        intern(getVal(row, idx, "trip_short_name")),
+			DirectionId:          models.Direction(parseUint(getVal(row, idx, "direction_id"))),
+			ShapeId:              intern(getVal(row, idx, "shape_id")),
+			WheelchairAccessible: models.Accessibility(parseUint(getVal(row, idx, "wheelchair_accessible"))),
+			BikeAccessible:       models.Accessibility(parseUint(getVal(row, idx, "bikes_allowed"))),
 		}
 
 		trips = append(trips, trip)
-	}
+	})
 
 	return trips
 }
@@ -176,24 +210,23 @@ func GetDepartures(data []byte) []models.Departure {
 	gostfu(err)
 
 	file, _ := zipReader.Open("stop_times.txt")
-
-	parsedfile := parseCSV(file)
+	defer file.Close()
 
 	var departures []models.Departure
 
-	for _, row := range parsedfile {
+	parseCSV(file, func(row []string, idx map[string]int) {
 		departure := models.Departure{
-			TripId:        row["trip_id"],
-			StopId:        row["stop_id"],
-			ArrivalTime:   row["arrival_time"],
-			DepartureTime: row["departure_time"],
-			StopSequence:  parseInt(row["stop_sequence"]),
-			PickupType:    models.PickupOrDropoff(parseUint(row["pickup_type"])),
-			DropoffType:   models.PickupOrDropoff(parseUint(row["drop_off_type"])),
+			TripId:        intern(getVal(row, idx, "trip_id")),
+			StopId:        intern(getVal(row, idx, "stop_id")),
+			ArrivalTime:   intern(getVal(row, idx, "arrival_time")),
+			DepartureTime: intern(getVal(row, idx, "departure_time")),
+			StopSequence:  parseInt(getVal(row, idx, "stop_sequence")),
+			PickupType:    models.PickupOrDropoff(parseUint(getVal(row, idx, "pickup_type"))),
+			DropoffType:   models.PickupOrDropoff(parseUint(getVal(row, idx, "drop_off_type"))),
 		}
 
 		departures = append(departures, departure)
-	}
+	})
 
 	return departures
 }
@@ -206,35 +239,34 @@ func GetCalendar(data []byte) []models.Calendar {
 	if err != nil {
 		if err.Error() == "open calendar.txt: file does not exist" {
 			file, err = zipReader.Open("calendar_dates.txt")
-
 			if err != nil {
 				panic("no calendar or calendar dates")
 			} else {
+				file.Close()
 				return []models.Calendar{}
 			}
 		}
 	}
-
-	parsedfile := parseCSV(file)
+	defer file.Close()
 
 	var calendars []models.Calendar
 
-	for _, row := range parsedfile {
+	parseCSV(file, func(row []string, idx map[string]int) {
 		calendar := models.Calendar{
-			ServiceId: row["service_id"],
-			Monday:    parseBool(row["monday"]),
-			Tuesday:   parseBool(row["tuesday"]),
-			Wednesday: parseBool(row["wednesday"]),
-			Thursday:  parseBool(row["thursday"]),
-			Friday:    parseBool(row["friday"]),
-			Saturday:  parseBool(row["saturday"]),
-			Sunday:    parseBool(row["sunday"]),
-			StartDate: parseDate(row["start_date"]),
-			EndDate:   parseDate(row["end_date"]),
+			ServiceId: intern(getVal(row, idx, "service_id")),
+			Monday:    parseBool(getVal(row, idx, "monday")),
+			Tuesday:   parseBool(getVal(row, idx, "tuesday")),
+			Wednesday: parseBool(getVal(row, idx, "wednesday")),
+			Thursday:  parseBool(getVal(row, idx, "thursday")),
+			Friday:    parseBool(getVal(row, idx, "friday")),
+			Saturday:  parseBool(getVal(row, idx, "saturday")),
+			Sunday:    parseBool(getVal(row, idx, "sunday")),
+			StartDate: parseDate(getVal(row, idx, "start_date")),
+			EndDate:   parseDate(getVal(row, idx, "end_date")),
 		}
 
 		calendars = append(calendars, calendar)
-	}
+	})
 
 	return calendars
 }
@@ -247,28 +279,27 @@ func GetCalendarDates(data []byte) []models.CalendarDate {
 	if err != nil {
 		if err.Error() == "open calendar_dates.txt: file does not exist" {
 			file, err = zipReader.Open("calendar.txt")
-
 			if err != nil {
 				panic("no calendar or calendar dates")
 			} else {
+				file.Close()
 				return []models.CalendarDate{}
 			}
 		}
 	}
-
-	parsedfile := parseCSV(file)
+	defer file.Close()
 
 	var calendarDates []models.CalendarDate
 
-	for _, row := range parsedfile {
+	parseCSV(file, func(row []string, idx map[string]int) {
 		calendarDate := models.CalendarDate{
-			ServiceId:     row["service_id"],
-			Date:          parseDate(row["date"]),
-			ExceptionType: models.ExceptionType(parseUint(row["exception_type"])),
+			ServiceId:     intern(getVal(row, idx, "service_id")),
+			Date:          parseDate(getVal(row, idx, "date")),
+			ExceptionType: models.ExceptionType(parseUint(getVal(row, idx, "exception_type"))),
 		}
 
 		calendarDates = append(calendarDates, calendarDate)
-	}
+	})
 
 	return calendarDates
 }
@@ -285,66 +316,56 @@ func GetShapes(data []byte) []models.Shape {
 			panic(err)
 		}
 	}
-
-	parsedfile := parseCSV(file)
+	defer file.Close()
 
 	var shapes []models.Shape
 
-	for _, row := range parsedfile {
+	parseCSV(file, func(row []string, idx map[string]int) {
 		shape := models.Shape{
-			ShapeId:         row["shape_id"],
-			ShapePtLat:      parseFloat(row["shape_pt_lat"]),
-			ShapePtLon:      parseFloat(row["shape_pt_lon"]),
-			ShapePtSequence: parseInt(row["shape_pt_sequence"]),
+			ShapeId:         intern(getVal(row, idx, "shape_id")),
+			ShapePtLat:      parseFloat(getVal(row, idx, "shape_pt_lat")),
+			ShapePtLon:      parseFloat(getVal(row, idx, "shape_pt_lon")),
+			ShapePtSequence: parseInt(getVal(row, idx, "shape_pt_sequence")),
 		}
 
 		shapes = append(shapes, shape)
-	}
+	})
 
 	return shapes
 }
 
 func GetShapeById(id string, shapes []models.Shape) []models.Shape {
 	shps := make([]models.Shape, 0)
-
 	for _, shape := range shapes {
 		if shape.ShapeId == id {
 			shps = append(shps, shape)
 		}
 	}
-
 	sort.Slice(shps, func(i, j int) bool {
 		return shps[i].ShapePtSequence < shps[j].ShapePtSequence
 	})
-
 	return shps
 }
 
 func GetDeparturesForStop(allDepartures []models.Departure, stop string) []models.Departure {
 	deps := make([]models.Departure, 0)
-
 	for _, departure := range allDepartures {
 		if departure.StopId == stop {
 			deps = append(deps, departure)
 		}
 	}
-
 	return deps
 }
 
 func GetActiveServicesForDate(date time.Time, calendars []models.Calendar, calendarDates []models.CalendarDate) map[string]bool {
 	activeServices := make(map[string]bool)
-
 	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 
 	if calendars != nil {
 		for _, cal := range calendars {
-			// Skip if date is outside service range
 			if date.Before(cal.StartDate) || date.After(cal.EndDate) {
 				continue
 			}
-
-			// Check weekday match
 			var runs bool
 			switch date.Weekday() {
 			case time.Monday:
@@ -362,7 +383,6 @@ func GetActiveServicesForDate(date time.Time, calendars []models.Calendar, calen
 			case time.Sunday:
 				runs = cal.Sunday
 			}
-
 			if runs {
 				activeServices[cal.ServiceId] = true
 			}
@@ -375,7 +395,6 @@ func GetActiveServicesForDate(date time.Time, calendars []models.Calendar, calen
 			if !cdDate.Equal(date) {
 				continue
 			}
-
 			switch cd.ExceptionType {
 			case models.SERVICE_ADDED:
 				activeServices[cd.ServiceId] = true
@@ -384,7 +403,6 @@ func GetActiveServicesForDate(date time.Time, calendars []models.Calendar, calen
 			}
 		}
 	}
-
 	return activeServices
 }
 
@@ -422,11 +440,9 @@ func GetDeparturesForStopOnDate(
 		if !exists {
 			continue
 		}
-
 		if activeServices[serviceId] {
 			departures = append(departures, dep)
 		}
 	}
-
 	return departures
 }
