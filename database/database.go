@@ -49,72 +49,88 @@ func PreloadCities() {
 			panic(err)
 		}
 
-		gtfs := &models.GTFSData{
-			Stops:         parser.GetStops(data),
-			Routes:        parser.GetRoutes(data),
-			Trips:         parser.GetTrips(data),
-			Departures:    parser.GetDepartures(data),
-			Calendars:     parser.GetCalendar(data),
-			CalendarDates: parser.GetCalendarDates(data),
-			Shapes:        parser.GetShapes(data),
-		}
+		// Process stops in chunks
+		parser.ProcessStopsChunked(data, 1000, func(stops []models.Stop) {
+			if len(stops) > 0 {
+				var dbStops []models.DbStop
+				for _, stop := range stops {
+					dbStops = append(dbStops, models.StopToDbStop(stop, city.ID))
+				}
+				db.CreateInBatches(dbStops, 150)
+			}
+		})
 
-		var dbStops []models.DbStop
-		for _, stop := range gtfs.Stops {
-			dbStops = append(dbStops, models.StopToDbStop(stop, city.ID))
-		}
+		// Process routes in chunks
+		parser.ProcessRoutesChunked(data, 1000, func(routes []models.Route) {
+			if len(routes) > 0 {
+				var dbRoutes []models.DbRoute
+				for _, route := range routes {
+					dbRoutes = append(dbRoutes, models.RouteToDbRoute(route, city.ID))
+				}
+				db.CreateInBatches(dbRoutes, 150)
+			}
+		})
 
-		var dbRoutes []models.DbRoute
-		for _, route := range gtfs.Routes {
-			dbRoutes = append(dbRoutes, models.RouteToDbRoute(route, city.ID))
-		}
+		// Process trips in chunks
+		parser.ProcessTripsChunked(data, 1000, func(trips []models.Trip) {
+			if len(trips) > 0 {
+				var dbTrips []models.DbTrip
+				for _, trip := range trips {
+					dbTrips = append(dbTrips, models.TripToDbTrip(trip, city.ID))
+				}
+				db.CreateInBatches(dbTrips, 150)
+			}
+		})
 
-		var dbTrips []models.DbTrip
-		for _, trip := range gtfs.Trips {
-			dbTrips = append(dbTrips, models.TripToDbTrip(trip, city.ID))
-		}
+		// Process departures in smaller chunks (this is usually the largest dataset)
+		parser.ProcessDeparturesChunked(data, 500, func(departures []models.Departure) {
+			if len(departures) > 0 {
+				var dbDepartures []models.DbDeparture
+				for _, dep := range departures {
+					dbDepartures = append(dbDepartures, models.DepartureToDbDeparture(dep, city.ID))
+				}
+				db.CreateInBatches(dbDepartures, 150)
+			}
+		})
 
-		var dbDepartures []models.DbDeparture
-		for _, dep := range gtfs.Departures {
-			dbDepartures = append(dbDepartures, models.DepartureToDbDeparture(dep, city.ID))
-		}
+		// Process calendars in chunks
+		parser.ProcessCalendarsChunked(data, 1000, func(calendars []models.Calendar) {
+			if len(calendars) > 0 {
+				var dbCalendars []models.DbCalendar
+				for _, cal := range calendars {
+					dbCalendars = append(dbCalendars, models.CalendarToDbCalendar(cal, city.ID))
+				}
+				db.CreateInBatches(dbCalendars, 150)
+			}
+		})
 
-		var dbCalendars []models.DbCalendar
-		for _, cal := range gtfs.Calendars {
-			dbCalendars = append(dbCalendars, models.CalendarToDbCalendar(cal, city.ID))
-		}
+		// Process calendar dates in chunks
+		parser.ProcessCalendarDatesChunked(data, 1000, func(calendarDates []models.CalendarDate) {
+			if len(calendarDates) > 0 {
+				var dbCalendarDates []models.DbCalendarDate
+				for _, cd := range calendarDates {
+					dbCalendarDates = append(dbCalendarDates, models.CalendarDateToDbCalendarDate(cd, city.ID))
+				}
+				db.CreateInBatches(dbCalendarDates, 150)
+			}
+		})
 
-		var dbCalendarDates []models.DbCalendarDate
-		for _, cd := range gtfs.CalendarDates {
-			dbCalendarDates = append(dbCalendarDates, models.CalendarDateToDbCalendarDate(cd, city.ID))
-		}
+		// Process shapes in chunks
+		parser.ProcessShapesChunked(data, 1000, func(shapes []models.Shape) {
+			if len(shapes) > 0 {
+				var dbShapes []models.DbShape
+				for _, shape := range shapes {
+					dbShapes = append(dbShapes, models.ShapeToDbShape(shape, city.ID))
+				}
+				db.CreateInBatches(dbShapes, 150)
+			}
+		})
 
-		var dbShapes []models.DbShape
-		for _, shape := range gtfs.Shapes {
-			dbShapes = append(dbShapes, models.ShapeToDbShape(shape, city.ID))
-		}
+		// Clear the downloaded data to help GC
+		data = nil
 
-		if len(dbStops) > 0 {
-			db.CreateInBatches(dbStops, 150)
-		}
-		if len(dbRoutes) > 0 {
-			db.CreateInBatches(dbRoutes, 150)
-		}
-		if len(dbTrips) > 0 {
-			db.CreateInBatches(dbTrips, 150)
-		}
-		if len(dbDepartures) > 0 {
-			db.CreateInBatches(dbDepartures, 150)
-		}
-		if len(dbCalendars) > 0 {
-			db.CreateInBatches(dbCalendars, 150)
-		}
-		if len(dbCalendarDates) > 0 {
-			db.CreateInBatches(dbCalendarDates, 150)
-		}
-		if len(dbShapes) > 0 {
-			db.CreateInBatches(dbShapes, 150)
-		}
+		// Clear interner cache between cities to prevent memory bloat
+		parser.ClearInterner()
 
 		println("Successfully loaded GTFS data for city:", city.ID)
 	}
