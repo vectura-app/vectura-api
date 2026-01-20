@@ -1,0 +1,5 @@
+cities:
+  - id: kielce
+    url: https://cdn.zbiorkom.live/gtfs/kielce.zip
+  - id: pkp-ic
+    url: https://cdn.zbiorkom.live/gtfs/pkp-ic.zip

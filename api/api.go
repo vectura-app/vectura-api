@@ -9,18 +9,11 @@ import (
 
 	"git.marceeli.ovh/vectura/vectura-api/models"
 	"git.marceeli.ovh/vectura/vectura-api/parser"
+	"git.marceeli.ovh/vectura/vectura-api/utils"
 	"github.com/gin-gonic/gin"
 )
 
-type CityConfig struct {
-	ID  string
-	URL string
-}
-
-var SupportedCities = []CityConfig{
-	{ID: "kielce", URL: "https://cdn.zbiorkom.live/gtfs/kielce.zip"},
-	{ID: "pkp-ic", URL: "https://cdn.zbiorkom.live/gtfs/pkp-ic.zip"},
-}
+var SupportedCities = utils.LoadCitiesFromYAML("cities.yaml")
 
 var cityData = make(map[string]*models.GTFSData)
 var cityDataMutex sync.RWMutex
