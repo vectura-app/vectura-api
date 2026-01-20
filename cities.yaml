@@ -1,5 +1,129 @@
 cities:
+  - id: bialystok-nova
+    url: https://cdn.zbiorkom.live/gtfs/bialystok-nova.zip
+  - id: bialystok-turosn
+    url: https://cdn.zbiorkom.live/gtfs/bialystok-turosn.zip
+  - id: bialystok-wschod
+    url: https://cdn.zbiorkom.live/gtfs/bialystok-wschod.zip
+  - id: bialystok
+    url: https://cdn.zbiorkom.live/gtfs/bialystok.zip
+  - id: czestochowa
+    url: https://cdn.zbiorkom.live/gtfs/czestochowa.zip
+  - id: elblag
+    url: https://cdn.zbiorkom.live/gtfs/elblag.zip
+  - id: elk
+    url: https://cdn.zbiorkom.live/gtfs/elk.zip
+  - id: gorzow
+    url: https://cdn.zbiorkom.live/gtfs/gorzow.zip
+  - id: gzm
+    url: https://cdn.zbiorkom.live/gtfs/gzm.zip
   - id: kielce
     url: https://cdn.zbiorkom.live/gtfs/kielce.zip
+  - id: krakow-bus
+    url: https://cdn.zbiorkom.live/gtfs/krakow-bus.zip
+  - id: krakow-mobilis
+    url: https://cdn.zbiorkom.live/gtfs/krakow-mobilis.zip
+  - id: krakow-tram
+    url: https://cdn.zbiorkom.live/gtfs/krakow-tram.zip
+  - id: kutno
+    url: https://cdn.zbiorkom.live/gtfs/kutno.zip
+  - id: legnica
+    url: https://cdn.zbiorkom.live/gtfs/legnica.zip
+  - id: leszno
+    url: https://cdn.zbiorkom.live/gtfs/leszno.zip
+  - id: lodz-lka
+    url: https://cdn.zbiorkom.live/gtfs/lodz-lka.zip
+  - id: lodz
+    url: https://cdn.zbiorkom.live/gtfs/lodz.zip
+  - id: lublin
+    url: https://cdn.zbiorkom.live/gtfs/lublin.zip
+  - id: olsztyn
+    url: https://cdn.zbiorkom.live/gtfs/olsztyn.zip
+  - id: opole
+    url: https://cdn.zbiorkom.live/gtfs/opole.zip
+  - id: pkp-ar
+    url: https://cdn.zbiorkom.live/gtfs/pkp-ar.zip
   - id: pkp-ic
     url: https://cdn.zbiorkom.live/gtfs/pkp-ic.zip
+  - id: pkp-kd
+    url: https://cdn.zbiorkom.live/gtfs/pkp-kd.zip
+  - id: pkp-km
+    url: https://cdn.zbiorkom.live/gtfs/pkp-km.zip
+  - id: pkp-kml
+    url: https://cdn.zbiorkom.live/gtfs/pkp-kml.zip
+  - id: pkp-ks
+    url: https://cdn.zbiorkom.live/gtfs/pkp-ks.zip
+  - id: pkp-kw
+    url: https://cdn.zbiorkom.live/gtfs/pkp-kw.zip
+  - id: pkp-lka
+    url: https://cdn.zbiorkom.live/gtfs/pkp-lka.zip
+  - id: pkp-pr
+    url: https://cdn.zbiorkom.live/gtfs/pkp-pr.zip
+  - id: pkp-rj
+    url: https://cdn.zbiorkom.live/gtfs/pkp-rj.zip
+  - id: pkp-skmt
+    url: https://cdn.zbiorkom.live/gtfs/pkp-skmt.zip
+  - id: pkp-skmw
+    url: https://cdn.zbiorkom.live/gtfs/pkp-skmw.zip
+  - id: pkp-wkd
+    url: https://cdn.zbiorkom.live/gtfs/pkp-wkd.zip
+  - id: poznan-kombus
+    url: https://cdn.zbiorkom.live/gtfs/poznan-kombus.zip
+  - id: poznan-pks
+    url: https://cdn.zbiorkom.live/gtfs/poznan-pks.zip
+  - id: poznan-sroda
+    url: https://cdn.zbiorkom.live/gtfs/poznan-sroda.zip
+  - id: poznan
+    url: https://cdn.zbiorkom.live/gtfs/poznan.zip
+  - id: przemysl
+    url: https://cdn.zbiorkom.live/gtfs/przemysl.zip
+  - id: radom
+    url: https://cdn.zbiorkom.live/gtfs/radom.zip
+  - id: rybnik-jastrzebie
+    url: https://cdn.zbiorkom.live/gtfs/rybnik-jastrzebie.zip
+  - id: rybnik
+    url: https://cdn.zbiorkom.live/gtfs/rybnik.zip
+  - id: rzeszow
+    url: https://cdn.zbiorkom.live/gtfs/rzeszow.zip
+  - id: suwalki
+    url: https://cdn.zbiorkom.live/gtfs/suwalki.zip
+  - id: szczecin-goleniow
+    url: https://cdn.zbiorkom.live/gtfs/szczecin-goleniow.zip
+  - id: szczecin
+    url: https://cdn.zbiorkom.live/gtfs/szczecin.zip
+  - id: tribus
+    url: https://cdn.zbiorkom.live/gtfs/tribus.zip
+  - id: tricity-gdansk
+    url: https://cdn.zbiorkom.live/gtfs/tricity-gdansk.zip
+  - id: tricity-gdynia
+    url: https://cdn.zbiorkom.live/gtfs/tricity-gdynia.zip
+  - id: warsaw-dabrowka
+    url: https://cdn.zbiorkom.live/gtfs/warsaw-dabrowka.zip
+  - id: warsaw-ferries
+    url: https://cdn.zbiorkom.live/gtfs/warsaw-ferries.zip
+  - id: warsaw-gpa
+    url: https://cdn.zbiorkom.live/gtfs/warsaw-gpa.zip
+  - id: warsaw-lomianki
+    url: https://cdn.zbiorkom.live/gtfs/warsaw-lomianki.zip
+  - id: warsaw-minsk
+    url: https://cdn.zbiorkom.live/gtfs/warsaw-minsk.zip
+  - id: warsaw-otwock
+    url: https://cdn.zbiorkom.live/gtfs/warsaw-otwock.zip
+  - id: warsaw-pruszkow
+    url: https://cdn.zbiorkom.live/gtfs/warsaw-pruszkow.zip
+  - id: warsaw-radzymin
+    url: https://cdn.zbiorkom.live/gtfs/warsaw-radzymin.zip
+  - id: warsaw-sochaczew
+    url: https://cdn.zbiorkom.live/gtfs/warsaw-sochaczew.zip
+  - id: warsaw-zabki
+    url: https://cdn.zbiorkom.live/gtfs/warsaw-zabki.zip
+  - id: warsaw
+    url: https://cdn.zbiorkom.live/gtfs/warsaw.zip
+  - id: wroclaw-olesnica
+    url: https://cdn.zbiorkom.live/gtfs/wroclaw-olesnica.zip
+  - id: wroclaw-polbus
+    url: https://cdn.zbiorkom.live/gtfs/wroclaw-polbus.zip
+  - id: wroclaw-siechnice
+    url: https://cdn.zbiorkom.live/gtfs/wroclaw-siechnice.zip
+  - id: wroclaw
+    url: https://cdn.zbiorkom.live/gtfs/wroclaw.zip

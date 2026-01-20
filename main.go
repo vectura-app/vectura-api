@@ -1,9 +1,9 @@
 package main
 
 import (
-	"git.marceeli.ovh/vectura/vectura-api/api"
+	"git.marceeli.ovh/vectura/vectura-api/database"
 )
 
 func main() {
-	api.StartServer()
+	database.PreloadCities()
 }
