@@ -78,6 +78,43 @@ func parseCSV(file fs.File, callback func(record []string, idxMap map[string]int
 	}
 }
 
+func parseCSVChunked(file fs.File, batchSize int, callback func(records [][]string, idxMap map[string]int)) {
+	reader := csv.NewReader(file)
+
+	reader.ReuseRecord = true
+	reader.LazyQuotes = true
+
+	header, err := reader.Read()
+	if err != nil {
+		return
+	}
+
+	idxMap := make(map[string]int, len(header))
+	for i, h := range header {
+		idxMap[h] = i
+	}
+
+	var batch [][]string
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		gostfu(err)
+
+		batch = append(batch, record)
+		if len(batch) >= batchSize {
+			callback(batch, idxMap)
+			batch = make([][]string, 0, batchSize) // Reset batch
+		}
+	}
+
+	// Process remaining records
+	if len(batch) > 0 {
+		callback(batch, idxMap)
+	}
+}
+
 // Helper to safely get a value from the slice using the index map
 func getVal(record []string, idxMap map[string]int, key string) string {
 	if idx, ok := idxMap[key]; ok && idx < len(record) {
@@ -332,6 +369,217 @@ func GetShapes(data []byte) []models.Shape {
 	})
 
 	return shapes
+}
+
+// Chunked processing functions for memory efficiency
+
+func ProcessStopsChunked(data []byte, batchSize int, callback func(stops []models.Stop)) {
+	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	gostfu(err)
+
+	file, _ := zipReader.Open("stops.txt")
+	defer file.Close()
+
+	parseCSVChunked(file, batchSize, func(records [][]string, idx map[string]int) {
+		var stops []models.Stop
+		for _, row := range records {
+			stop := models.Stop{
+				StopId:             intern(getVal(row, idx, "stop_id")),
+				StopCode:           intern(getVal(row, idx, "stop_code")),
+				StopName:           intern(getVal(row, idx, "stop_name")),
+				StopLat:            parseFloat(getVal(row, idx, "stop_lat")),
+				StopLon:            parseFloat(getVal(row, idx, "stop_lon")),
+				StopUrl:            intern(getVal(row, idx, "stop_url")),
+				ZoneId:             intern(getVal(row, idx, "zone_id")),
+				ParentStation:      intern(getVal(row, idx, "parent_station")),
+				PlatformCode:       intern(getVal(row, idx, "platform_code")),
+				WheelchairBoarding: models.Accessibility(parseUint(getVal(row, idx, "wheelchair_boarding"))),
+				LocationType:       models.Location(parseUint(getVal(row, idx, "location_type"))),
+			}
+			stops = append(stops, stop)
+		}
+		callback(stops)
+	})
+}
+
+func ProcessRoutesChunked(data []byte, batchSize int, callback func(routes []models.Route)) {
+	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	gostfu(err)
+
+	file, _ := zipReader.Open("routes.txt")
+	defer file.Close()
+
+	parseCSVChunked(file, batchSize, func(records [][]string, idx map[string]int) {
+		var routes []models.Route
+		for _, row := range records {
+			route := models.Route{
+				RouteId:          intern(getVal(row, idx, "route_id")),
+				AgencyId:         intern(getVal(row, idx, "agency_id")),
+				RouteShortName:   intern(getVal(row, idx, "route_short_name")),
+				RouteLongName:    intern(getVal(row, idx, "route_long_name")),
+				RouteDescription: intern(getVal(row, idx, "route_desc")),
+				RouteType:        models.Type(parseUint(getVal(row, idx, "route_type"))),
+				RouteUrl:         intern(getVal(row, idx, "route_url")),
+				RouteColor:       intern(getVal(row, idx, "route_color")),
+				RouteTextColor:   intern(getVal(row, idx, "route_text_color")),
+			}
+			routes = append(routes, route)
+		}
+		callback(routes)
+	})
+}
+
+func ProcessTripsChunked(data []byte, batchSize int, callback func(trips []models.Trip)) {
+	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	gostfu(err)
+
+	file, _ := zipReader.Open("trips.txt")
+	defer file.Close()
+
+	parseCSVChunked(file, batchSize, func(records [][]string, idx map[string]int) {
+		var trips []models.Trip
+		for _, row := range records {
+			trip := models.Trip{
+				TripId:               intern(getVal(row, idx, "trip_id")),
+				RouteId:              intern(getVal(row, idx, "route_id")),
+				ServiceId:            intern(getVal(row, idx, "service_id")),
+				BlockId:              intern(getVal(row, idx, "block_id")),
+				TripHeadsign:         intern(getVal(row, idx, "trip_headsign")),
+				TripShortName:        intern(getVal(row, idx, "trip_short_name")),
+				DirectionId:          models.Direction(parseUint(getVal(row, idx, "direction_id"))),
+				ShapeId:              intern(getVal(row, idx, "shape_id")),
+				WheelchairAccessible: models.Accessibility(parseUint(getVal(row, idx, "wheelchair_accessible"))),
+				BikeAccessible:       models.Accessibility(parseUint(getVal(row, idx, "bikes_allowed"))),
+			}
+			trips = append(trips, trip)
+		}
+		callback(trips)
+	})
+}
+
+func ProcessDeparturesChunked(data []byte, batchSize int, callback func(departures []models.Departure)) {
+	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	gostfu(err)
+
+	file, _ := zipReader.Open("stop_times.txt")
+	defer file.Close()
+
+	parseCSVChunked(file, batchSize, func(records [][]string, idx map[string]int) {
+		var departures []models.Departure
+		for _, row := range records {
+			departure := models.Departure{
+				TripId:        intern(getVal(row, idx, "trip_id")),
+				StopId:        intern(getVal(row, idx, "stop_id")),
+				ArrivalTime:   intern(getVal(row, idx, "arrival_time")),
+				DepartureTime: intern(getVal(row, idx, "departure_time")),
+				StopSequence:  parseInt(getVal(row, idx, "stop_sequence")),
+				PickupType:    models.PickupOrDropoff(parseUint(getVal(row, idx, "pickup_type"))),
+				DropoffType:   models.PickupOrDropoff(parseUint(getVal(row, idx, "drop_off_type"))),
+			}
+			departures = append(departures, departure)
+		}
+		callback(departures)
+	})
+}
+
+func ProcessCalendarsChunked(data []byte, batchSize int, callback func(calendars []models.Calendar)) {
+	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	gostfu(err)
+
+	file, err := zipReader.Open("calendar.txt")
+	if err != nil {
+		if err.Error() == "open calendar.txt: file does not exist" {
+			file, err = zipReader.Open("calendar_dates.txt")
+			if err != nil {
+				panic("no calendar or calendar dates")
+			} else {
+				file.Close()
+				return
+			}
+		}
+	}
+	defer file.Close()
+
+	parseCSVChunked(file, batchSize, func(records [][]string, idx map[string]int) {
+		var calendars []models.Calendar
+		for _, row := range records {
+			calendar := models.Calendar{
+				ServiceId: intern(getVal(row, idx, "service_id")),
+				Monday:    parseBool(getVal(row, idx, "monday")),
+				Tuesday:   parseBool(getVal(row, idx, "tuesday")),
+				Wednesday: parseBool(getVal(row, idx, "wednesday")),
+				Thursday:  parseBool(getVal(row, idx, "thursday")),
+				Friday:    parseBool(getVal(row, idx, "friday")),
+				Saturday:  parseBool(getVal(row, idx, "saturday")),
+				Sunday:    parseBool(getVal(row, idx, "sunday")),
+				StartDate: parseDate(getVal(row, idx, "start_date")),
+				EndDate:   parseDate(getVal(row, idx, "end_date")),
+			}
+			calendars = append(calendars, calendar)
+		}
+		callback(calendars)
+	})
+}
+
+func ProcessCalendarDatesChunked(data []byte, batchSize int, callback func(calendarDates []models.CalendarDate)) {
+	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	gostfu(err)
+
+	file, err := zipReader.Open("calendar_dates.txt")
+	if err != nil {
+		if err.Error() == "open calendar_dates.txt: file does not exist" {
+			file, err = zipReader.Open("calendar.txt")
+			if err != nil {
+				panic("no calendar or calendar dates")
+			} else {
+				file.Close()
+				return
+			}
+		}
+	}
+	defer file.Close()
+
+	parseCSVChunked(file, batchSize, func(records [][]string, idx map[string]int) {
+		var calendarDates []models.CalendarDate
+		for _, row := range records {
+			calendarDate := models.CalendarDate{
+				ServiceId:     intern(getVal(row, idx, "service_id")),
+				Date:          parseDate(getVal(row, idx, "date")),
+				ExceptionType: models.ExceptionType(parseUint(getVal(row, idx, "exception_type"))),
+			}
+			calendarDates = append(calendarDates, calendarDate)
+		}
+		callback(calendarDates)
+	})
+}
+
+func ProcessShapesChunked(data []byte, batchSize int, callback func(shapes []models.Shape)) {
+	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	gostfu(err)
+
+	file, err := zipReader.Open("shapes.txt")
+	if err != nil {
+		if err.Error() == "open shapes.txt: file does not exist" {
+			return
+		} else {
+			panic(err)
+		}
+	}
+	defer file.Close()
+
+	parseCSVChunked(file, batchSize, func(records [][]string, idx map[string]int) {
+		var shapes []models.Shape
+		for _, row := range records {
+			shape := models.Shape{
+				ShapeId:         intern(getVal(row, idx, "shape_id")),
+				ShapePtLat:      parseFloat(getVal(row, idx, "shape_pt_lat")),
+				ShapePtLon:      parseFloat(getVal(row, idx, "shape_pt_lon")),
+				ShapePtSequence: parseInt(getVal(row, idx, "shape_pt_sequence")),
+			}
+			shapes = append(shapes, shape)
+		}
+		callback(shapes)
+	})
 }
 
 func GetShapeById(id string, shapes []models.Shape) []models.Shape {
