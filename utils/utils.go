@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"fmt"
+	"io"
+	"net/http"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -13,6 +16,12 @@ type CityConfig struct {
 
 type Config struct {
 	SupportedCities []CityConfig `yaml:"cities"`
+}
+
+func gostfu(err error) {
+	if err != nil {
+		panic(err)
+	}
 }
 
 func LoadCitiesFromYAML(filename string) []CityConfig {
@@ -28,4 +37,20 @@ func LoadCitiesFromYAML(filename string) []CityConfig {
 	}
 
 	return config.SupportedCities
+}
+
+func FetchGTFS(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+
+	gostfu(err)
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+
+	gostfu(err)
+
+	return data, nil
 }
