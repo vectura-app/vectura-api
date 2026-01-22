@@ -102,14 +102,17 @@ func parseCSVChunked(file fs.File, batchSize int, callback func(records [][]stri
 		}
 		gostfu(err)
 
-		batch = append(batch, record)
+		// Make a copy of the record since ReuseRecord is true
+		recordCopy := make([]string, len(record))
+		copy(recordCopy, record)
+
+		batch = append(batch, recordCopy)
 		if len(batch) >= batchSize {
 			callback(batch, idxMap)
-			batch = make([][]string, 0, batchSize) // Reset batch
+			batch = make([][]string, 0, batchSize)
 		}
 	}
 
-	// Process remaining records
 	if len(batch) > 0 {
 		callback(batch, idxMap)
 	}
