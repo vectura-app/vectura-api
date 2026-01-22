@@ -1,51 +1,16 @@
 package database
 
 import (
-	"os"
 	"time"
 
 	"git.marceeli.ovh/vectura/vectura-api/models"
 	"git.marceeli.ovh/vectura/vectura-api/parser"
 	"git.marceeli.ovh/vectura/vectura-api/utils"
-	"github.com/joho/godotenv"
-	"gorm.io/driver/mysql"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
-func PreloadCities() {
+func PreloadCities(db *gorm.DB) {
 	cities := utils.LoadCitiesFromYAML("cities.yaml")
-	enverr := godotenv.Load()
-
-	if enverr != nil {
-		if enverr.Error() == "open .env: no such file or directory" {
-			// there is no .env so don't give a fuck
-		} else {
-			panic(enverr)
-		}
-	}
-
-	dsn := os.Getenv("DSN")
-
-	var (
-		db  *gorm.DB
-		err error
-	)
-
-	if dsn != "" {
-		db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
-			Logger: logger.Default.LogMode(logger.Error),
-		})
-	} else {
-		db, err = gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
-			Logger: logger.Default.LogMode(logger.Error),
-		})
-	}
-
-	if err != nil {
-		panic(err)
-	}
 
 	// Fuck the entire db
 	db.Migrator().DropTable(
