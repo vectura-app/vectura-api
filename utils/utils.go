@@ -39,6 +39,22 @@ func LoadCitiesFromYAML(filename string) []CityConfig {
 	return config.SupportedCities
 }
 
+func GetCityIDIndex(filename string) []string {
+	data, err := os.ReadFile(filename)
+	var idx []string
+	gostfu(err)
+
+	var config Config
+	err = yaml.Unmarshal(data, &config)
+	gostfu(err)
+
+	for _, city := range config.SupportedCities {
+		idx = append(idx, city.ID)
+	}
+
+	return idx
+}
+
 func FetchGTFS(url string) ([]byte, error) {
 	resp, err := http.Get(url)
 
