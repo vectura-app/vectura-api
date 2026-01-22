@@ -14,24 +14,24 @@ func PreloadCities(db *gorm.DB) {
 
 	// Fuck the entire db
 	db.Migrator().DropTable(
-		&models.DbStop{},
-		&models.DbRoute{},
-		&models.DbTrip{},
-		&models.DbDeparture{},
-		&models.DbCalendar{},
-		&models.DbCalendarDate{},
-		&models.DbShape{},
+		&Stop{},
+		&Route{},
+		&Trip{},
+		&Departure{},
+		&Calendar{},
+		&CalendarDate{},
+		&Shape{},
 	)
 
 	// just kidding lmao
 	db.AutoMigrate(
-		&models.DbStop{},
-		&models.DbRoute{},
-		&models.DbTrip{},
-		&models.DbDeparture{},
-		&models.DbCalendar{},
-		&models.DbCalendarDate{},
-		&models.DbShape{},
+		&Stop{},
+		&Route{},
+		&Trip{},
+		&Departure{},
+		&Calendar{},
+		&CalendarDate{},
+		&Shape{},
 	)
 
 	for _, city := range cities {
@@ -45,9 +45,9 @@ func PreloadCities(db *gorm.DB) {
 		// Process stops in chunks
 		parser.ProcessStopsChunked(data, 1250, func(stops []models.Stop) {
 			if len(stops) > 0 {
-				var dbStops []models.DbStop
+				var dbStops []Stop
 				for _, stop := range stops {
-					dbStops = append(dbStops, models.StopToDbStop(stop, city.ID))
+					dbStops = append(dbStops, StopToDbStop(stop, city.ID))
 				}
 				db.CreateInBatches(dbStops, limit)
 			}
@@ -56,9 +56,9 @@ func PreloadCities(db *gorm.DB) {
 		// Process routes in chunks
 		parser.ProcessRoutesChunked(data, 1500, func(routes []models.Route) {
 			if len(routes) > 0 {
-				var dbRoutes []models.DbRoute
+				var dbRoutes []Route
 				for _, route := range routes {
-					dbRoutes = append(dbRoutes, models.RouteToDbRoute(route, city.ID))
+					dbRoutes = append(dbRoutes, RouteToDbRoute(route, city.ID))
 				}
 				db.CreateInBatches(dbRoutes, limit)
 			}
@@ -67,9 +67,9 @@ func PreloadCities(db *gorm.DB) {
 		// Process trips in chunks
 		parser.ProcessTripsChunked(data, 750, func(trips []models.Trip) {
 			if len(trips) > 0 {
-				var dbTrips []models.DbTrip
+				var dbTrips []Trip
 				for _, trip := range trips {
-					dbTrips = append(dbTrips, models.TripToDbTrip(trip, city.ID))
+					dbTrips = append(dbTrips, TripToDbTrip(trip, city.ID))
 				}
 				db.CreateInBatches(dbTrips, limit)
 			}
@@ -78,9 +78,9 @@ func PreloadCities(db *gorm.DB) {
 		// Process departures in smaller chunks (this is usually the largest dataset)
 		parser.ProcessDeparturesChunked(data, 750, func(departures []models.Departure) {
 			if len(departures) > 0 {
-				var dbDepartures []models.DbDeparture
+				var dbDepartures []Departure
 				for _, dep := range departures {
-					dbDepartures = append(dbDepartures, models.DepartureToDbDeparture(dep, city.ID))
+					dbDepartures = append(dbDepartures, DepartureToDbDeparture(dep, city.ID))
 				}
 				db.CreateInBatches(dbDepartures, limit)
 			}
@@ -89,9 +89,9 @@ func PreloadCities(db *gorm.DB) {
 		// Process calendars in chunks
 		parser.ProcessCalendarsChunked(data, 1000, func(calendars []models.Calendar) {
 			if len(calendars) > 0 {
-				var dbCalendars []models.DbCalendar
+				var dbCalendars []Calendar
 				for _, cal := range calendars {
-					dbCalendars = append(dbCalendars, models.CalendarToDbCalendar(cal, city.ID))
+					dbCalendars = append(dbCalendars, CalendarToDbCalendar(cal, city.ID))
 				}
 				db.CreateInBatches(dbCalendars, limit)
 			}
@@ -100,9 +100,9 @@ func PreloadCities(db *gorm.DB) {
 		// Process calendar dates in chunks
 		parser.ProcessCalendarDatesChunked(data, 1750, func(calendarDates []models.CalendarDate) {
 			if len(calendarDates) > 0 {
-				var dbCalendarDates []models.DbCalendarDate
+				var dbCalendarDates []CalendarDate
 				for _, cd := range calendarDates {
-					dbCalendarDates = append(dbCalendarDates, models.CalendarDateToDbCalendarDate(cd, city.ID))
+					dbCalendarDates = append(dbCalendarDates, CalendarDateToDbCalendarDate(cd, city.ID))
 				}
 				db.CreateInBatches(dbCalendarDates, limit)
 			}
@@ -111,9 +111,9 @@ func PreloadCities(db *gorm.DB) {
 		// Process shapes in chunks
 		parser.ProcessShapesChunked(data, 1500, func(shapes []models.Shape) {
 			if len(shapes) > 0 {
-				var dbShapes []models.DbShape
+				var dbShapes []Shape
 				for _, shape := range shapes {
-					dbShapes = append(dbShapes, models.ShapeToDbShape(shape, city.ID))
+					dbShapes = append(dbShapes, ShapeToDbShape(shape, city.ID))
 				}
 				db.CreateInBatches(dbShapes, limit)
 			}
