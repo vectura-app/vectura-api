@@ -1,11 +1,14 @@
 package database
 
 import (
+	"os"
 	"time"
 
 	"git.marceeli.ovh/vectura/vectura-api/models"
 	"git.marceeli.ovh/vectura/vectura-api/parser"
 	"git.marceeli.ovh/vectura/vectura-api/utils"
+	"github.com/joho/godotenv"
+	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -13,12 +16,35 @@ import (
 
 func PreloadCities() {
 	cities := utils.LoadCitiesFromYAML("cities.yaml")
+	enverr := godotenv.Load()
 
-	db, err := gorm.Open(sqlite.Open("database.db"), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Error),
-	})
+	if enverr != nil {
+		if enverr.Error() == "open .env: no such file or directory" {
+			// there is no .env so don't give a fuck
+		} else {
+			panic(enverr)
+		}
+	}
+
+	dsn := os.Getenv("DSN")
+
+	var (
+		db  *gorm.DB
+		err error
+	)
+
+	if dsn != "" {
+		db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
+			Logger: logger.Default.LogMode(logger.Error),
+		})
+	} else {
+		db, err = gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
+			Logger: logger.Default.LogMode(logger.Error),
+		})
+	}
+
 	if err != nil {
-		panic("failed to connect to database")
+		panic(err)
 	}
 
 	// Fuck the entire db
@@ -49,47 +75,49 @@ func PreloadCities() {
 			panic(err)
 		}
 
+		limit := 2000
+
 		// Process stops in chunks
-		parser.ProcessStopsChunked(data, 1000, func(stops []models.Stop) {
+		parser.ProcessStopsChunked(data, 1250, func(stops []models.Stop) {
 			if len(stops) > 0 {
 				var dbStops []models.DbStop
 				for _, stop := range stops {
 					dbStops = append(dbStops, models.StopToDbStop(stop, city.ID))
 				}
-				db.CreateInBatches(dbStops, 150)
+				db.CreateInBatches(dbStops, limit)
 			}
 		})
 
 		// Process routes in chunks
-		parser.ProcessRoutesChunked(data, 1000, func(routes []models.Route) {
+		parser.ProcessRoutesChunked(data, 1500, func(routes []models.Route) {
 			if len(routes) > 0 {
 				var dbRoutes []models.DbRoute
 				for _, route := range routes {
 					dbRoutes = append(dbRoutes, models.RouteToDbRoute(route, city.ID))
 				}
-				db.CreateInBatches(dbRoutes, 150)
+				db.CreateInBatches(dbRoutes, limit)
 			}
 		})
 
 		// Process trips in chunks
-		parser.ProcessTripsChunked(data, 1000, func(trips []models.Trip) {
+		parser.ProcessTripsChunked(data, 750, func(trips []models.Trip) {
 			if len(trips) > 0 {
 				var dbTrips []models.DbTrip
 				for _, trip := range trips {
 					dbTrips = append(dbTrips, models.TripToDbTrip(trip, city.ID))
 				}
-				db.CreateInBatches(dbTrips, 150)
+				db.CreateInBatches(dbTrips, limit)
 			}
 		})
 
 		// Process departures in smaller chunks (this is usually the largest dataset)
-		parser.ProcessDeparturesChunked(data, 500, func(departures []models.Departure) {
+		parser.ProcessDeparturesChunked(data, 750, func(departures []models.Departure) {
 			if len(departures) > 0 {
 				var dbDepartures []models.DbDeparture
 				for _, dep := range departures {
 					dbDepartures = append(dbDepartures, models.DepartureToDbDeparture(dep, city.ID))
 				}
-				db.CreateInBatches(dbDepartures, 150)
+				db.CreateInBatches(dbDepartures, limit)
 			}
 		})
 
@@ -100,29 +128,29 @@ func PreloadCities() {
 				for _, cal := range calendars {
 					dbCalendars = append(dbCalendars, models.CalendarToDbCalendar(cal, city.ID))
 				}
-				db.CreateInBatches(dbCalendars, 150)
+				db.CreateInBatches(dbCalendars, limit)
 			}
 		})
 
 		// Process calendar dates in chunks
-		parser.ProcessCalendarDatesChunked(data, 1000, func(calendarDates []models.CalendarDate) {
+		parser.ProcessCalendarDatesChunked(data, 1750, func(calendarDates []models.CalendarDate) {
 			if len(calendarDates) > 0 {
 				var dbCalendarDates []models.DbCalendarDate
 				for _, cd := range calendarDates {
 					dbCalendarDates = append(dbCalendarDates, models.CalendarDateToDbCalendarDate(cd, city.ID))
 				}
-				db.CreateInBatches(dbCalendarDates, 150)
+				db.CreateInBatches(dbCalendarDates, limit)
 			}
 		})
 
 		// Process shapes in chunks
-		parser.ProcessShapesChunked(data, 1000, func(shapes []models.Shape) {
+		parser.ProcessShapesChunked(data, 1500, func(shapes []models.Shape) {
 			if len(shapes) > 0 {
 				var dbShapes []models.DbShape
 				for _, shape := range shapes {
 					dbShapes = append(dbShapes, models.ShapeToDbShape(shape, city.ID))
 				}
-				db.CreateInBatches(dbShapes, 150)
+				db.CreateInBatches(dbShapes, limit)
 			}
 		})
 
