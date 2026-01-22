@@ -105,6 +105,8 @@ type Trip struct {
 }
 
 type Departure struct {
+	Trip          Trip
+	Route         Route
 	TripId        string
 	StopId        string
 	ArrivalTime   string

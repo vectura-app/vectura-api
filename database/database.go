@@ -129,38 +129,182 @@ func PreloadCities(db *gorm.DB) {
 	}
 }
 
-// TODO: do
+func GetStops(db *gorm.DB, city string) []models.Stop {
+	var dbdata []Stop
+	var data []models.Stop
 
-func GetShapeById(id string, shapes []models.Shape) []models.Shape {
-	return []models.Shape{}
+	db.Table("stops").Where("city_id = ?", city).Find(&dbdata)
+
+	for _, dat := range dbdata {
+		data = append(data, DbStopToStop(dat))
+	}
+
+	return data
 }
 
-func GetDeparturesForStop(allDepartures []models.Departure, stop string) []models.Departure {
-	return []models.Departure{}
+func GetRoutes(db *gorm.DB, city string) []models.Route {
+	var dbdata []Route
+	var data []models.Route
+
+	db.Table("routes").Where("city_id = ?", city).Find(&dbdata)
+
+	for _, dat := range dbdata {
+		data = append(data, DbRouteToRoute(dat))
+	}
+
+	return data
 }
 
-func GetActiveServicesForDate(date time.Time, calendars []models.Calendar, calendarDates []models.CalendarDate) map[string]bool {
-	return map[string]bool{}
+func GetTrips(db *gorm.DB, city string) []models.Trip {
+	var dbdata []Trip
+	var data []models.Trip
+
+	db.Table("trips").Where("city_id = ?", city).Find(&dbdata)
+
+	for _, dat := range dbdata {
+		data = append(data, DbTripToTrip(dat))
+	}
+
+	return data
 }
 
-func GetDeparturesForStopToday(
-	stop string,
-	calendars []models.Calendar,
-	calendarDates []models.CalendarDate,
-	allDepartures []models.Departure,
-	trips []models.Trip,
-) []models.Departure {
-	today := time.Now()
-	return GetDeparturesForStopOnDate(stop, today, calendars, calendarDates, allDepartures, trips)
+func GetDepartures(db *gorm.DB, city string) []models.Departure {
+	var dbdata []Departure
+	var data []models.Departure
+
+	db.Table("departures").Where("city_id = ?", city).Find(&dbdata)
+
+	for _, dat := range dbdata {
+		data = append(data, DbDepartureToDeparture(dat))
+	}
+
+	return data
 }
 
-func GetDeparturesForStopOnDate(
-	stop string,
-	date time.Time,
-	calendars []models.Calendar,
-	calendarDates []models.CalendarDate,
-	allDepartures []models.Departure,
-	trips []models.Trip,
-) []models.Departure {
-	return []models.Departure{}
+func GetShapes(db *gorm.DB, city string) []models.Shape {
+	var dbdata []Shape
+	var data []models.Shape
+
+	db.Table("shapes").Where("city_id = ?", city).Find(&dbdata)
+
+	for _, dat := range dbdata {
+		data = append(data, DbShapeToShape(dat))
+	}
+
+	return data
+}
+
+func GetShapeById(db *gorm.DB, city string, id string) []models.Shape {
+	var dbshapes []Shape
+	var shapes []models.Shape
+
+	db.Table("shapes").Where("city_id = ?", city).Where("shape_id = ?", id).Order("shape_pt_sequence").Limit(-1).Find(&dbshapes)
+
+	for _, shape := range dbshapes {
+		shapes = append(shapes, DbShapeToShape(shape))
+	}
+
+	return shapes
+}
+
+func GetDeparturesForStop(db *gorm.DB, city string, id string) []models.Departure {
+	var dbdeps []Departure
+	var deps []models.Departure
+
+	db.Table("departures").Where("city_id = ?", city).Where("stop_id = ?", id).Order("arrival_time").Limit(-1).Find(&dbdeps)
+
+	for _, dep := range dbdeps {
+		deps = append(deps, DbDepartureToDeparture(dep))
+	}
+
+	return deps
+}
+
+func GetActiveServicesForDate(db *gorm.DB, city string, date time.Time) map[string]bool {
+	activeServices := make(map[string]bool)
+	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+
+	var calendars []models.Calendar
+	db.Table("calendars").
+		Where("city_id = ?", city).
+		Where("start_date <= ?", date).
+		Where("end_date >= ?", date).
+		Find(&calendars)
+
+	for _, cal := range calendars {
+		var runs bool
+		switch date.Weekday() {
+		case time.Monday:
+			runs = cal.Monday
+		case time.Tuesday:
+			runs = cal.Tuesday
+		case time.Wednesday:
+			runs = cal.Wednesday
+		case time.Thursday:
+			runs = cal.Thursday
+		case time.Friday:
+			runs = cal.Friday
+		case time.Saturday:
+			runs = cal.Saturday
+		case time.Sunday:
+			runs = cal.Sunday
+		}
+		if runs {
+			activeServices[cal.ServiceId] = true
+		}
+	}
+
+	var calendarDates []models.CalendarDate
+	db.Table("calendar_dates").
+		Where("city_id = ?", city).
+		Where("date = ?", date).
+		Find(&calendarDates)
+
+	for _, cd := range calendarDates {
+		switch cd.ExceptionType {
+		case models.SERVICE_ADDED:
+			activeServices[cd.ServiceId] = true
+		case models.SERVICE_REMOVED:
+			delete(activeServices, cd.ServiceId)
+		}
+	}
+
+	return activeServices
+}
+
+func GetDeparturesForStopToday(db *gorm.DB, city string, stop string) []models.Departure {
+	date := time.Now()
+
+	return GetDeparturesForStopOnDate(db, city, stop, date)
+}
+
+func GetDeparturesForStopOnDate(db *gorm.DB, city string, stop string, date time.Time) []models.Departure {
+	var (
+		dbDeps []Departure
+		deps   []models.Departure
+	)
+
+	services := GetActiveServicesForDate(db, city, date)
+
+	if len(services) == 0 {
+		return deps
+	}
+
+	// Get departures for this stop with preloaded Trip
+	db.Model(&Departure{}).
+		Table("departures").
+		Preload("Trip.Route").
+		Where("city_id = ?", city).
+		Where("stop_id = ?", stop).
+		Order("departure_time").
+		Find(&dbDeps)
+
+	// Filter departures by active services using preloaded Trip
+	for _, dep := range dbDeps {
+		if services[dep.Trip.ServiceId] {
+			deps = append(deps, DbDepartureToDeparture(dep))
+		}
+	}
+
+	return deps
 }

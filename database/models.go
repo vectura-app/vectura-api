@@ -11,7 +11,7 @@ import (
 type Route struct {
 	gorm.Model
 	CityId           string
-	RouteId          string
+	RouteId          string         `gorm:"uniqueIndex"`
 	AgencyId         sql.NullString // TODO: add agency association
 	RouteShortName   sql.NullString
 	RouteLongName    sql.NullString
@@ -25,7 +25,7 @@ type Route struct {
 type Stop struct {
 	gorm.Model
 	CityId             string
-	StopId             string
+	StopId             string `gorm:"uniqueIndex"`
 	StopCode           sql.NullString
 	StopName           sql.NullString
 	StopLat            sql.NullFloat64
@@ -41,7 +41,7 @@ type Stop struct {
 type Trip struct {
 	gorm.Model
 	CityId               string
-	TripId               string
+	TripId               string `gorm:"uniqueIndex"`
 	RouteId              string
 	Route                Route `gorm:"foreignKey:RouteId;references:RouteId"`
 	ServiceId            string
@@ -147,6 +147,8 @@ func DbTripToTrip(dbTrip Trip) models.Trip {
 
 func DbDepartureToDeparture(dbDep Departure) models.Departure {
 	return models.Departure{
+		Trip:          DbTripToTrip(dbDep.Trip),
+		Route:         DbRouteToRoute(dbDep.Trip.Route),
 		TripId:        dbDep.TripId,
 		StopId:        dbDep.StopId,
 		ArrivalTime:   dbDep.ArrivalTime,
