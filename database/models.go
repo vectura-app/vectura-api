@@ -11,8 +11,8 @@ import (
 type Route struct {
 	gorm.Model
 	CityId           string
-	RouteId          string         `gorm:"uniqueIndex"`
-	AgencyId         sql.NullString // TODO: add agency association
+	RouteId          string         `gorm:"uniqueIndex:idx_city_route"` 
+	AgencyId         sql.NullString `gorm:"index"`                      
 	RouteShortName   sql.NullString
 	RouteLongName    sql.NullString
 	RouteDescription sql.NullString
@@ -25,14 +25,14 @@ type Route struct {
 type Stop struct {
 	gorm.Model
 	CityId             string
-	StopId             string `gorm:"uniqueIndex"`
+	StopId             string `gorm:"uniqueIndex:idx_city_stop"` 
 	StopCode           sql.NullString
-	StopName           sql.NullString
+	StopName           sql.NullString `gorm:"index"` 
 	StopLat            sql.NullFloat64
 	StopLon            sql.NullFloat64
 	StopUrl            sql.NullString
 	ZoneId             sql.NullString
-	ParentStation      sql.NullString
+	ParentStation      sql.NullString `gorm:"index"` 
 	PlatformCode       sql.NullString
 	WheelchairBoarding sql.NullInt16
 	LocationType       sql.NullInt16
@@ -41,15 +41,15 @@ type Stop struct {
 type Trip struct {
 	gorm.Model
 	CityId               string
-	TripId               string `gorm:"uniqueIndex"`
-	RouteId              string
-	Route                Route `gorm:"foreignKey:RouteId;references:RouteId"`
-	ServiceId            string
+	TripId               string `gorm:"uniqueIndex:idx_city_trip"` 
+	RouteId              string `gorm:"index:idx_route"`           
+	Route                Route  `gorm:"foreignKey:RouteId;references:RouteId"`
+	ServiceId            string `gorm:"index:idx_service"` 
 	BlockId              sql.NullString
 	TripHeadsign         sql.NullString
 	TripShortName        sql.NullString
 	DirectionId          sql.NullInt16
-	ShapeId              sql.NullString
+	ShapeId              sql.NullString `gorm:"index"` 
 	WheelchairAccessible sql.NullInt16
 	BikeAccessible       sql.NullInt16
 }
@@ -57,13 +57,13 @@ type Trip struct {
 type Departure struct {
 	gorm.Model
 	CityId        string
-	TripId        string
-	Trip          Trip `gorm:"foreignKey:TripId;references:TripId"`
-	StopId        string
-	Stop          Stop `gorm:"foreignKey:StopId;references:StopId"`
-	ArrivalTime   string
-	DepartureTime string
-	StopSequence  int
+	TripId        string `gorm:"index:idx_trip"`                                    
+	Trip          Trip   `gorm:"foreignKey:TripId;references:TripId"`               
+	StopId        string `gorm:"index:idx_stop;index:idx_stop_departure"`           
+	Stop          Stop   `gorm:"foreignKey:StopId;references:StopId"`               
+	ArrivalTime   string `gorm:"index:idx_arrival"`                                 
+	DepartureTime string `gorm:"index:idx_stop_departure;index:idx_departure_time"` 
+	StopSequence  int    `gorm:"index"`                                             
 	PickupType    sql.NullInt16
 	DropoffType   sql.NullInt16
 }
@@ -71,7 +71,7 @@ type Departure struct {
 type Calendar struct {
 	gorm.Model
 	CityId    string
-	ServiceId string
+	ServiceId string `gorm:"uniqueIndex:idx_city_service"` 
 	Monday    bool
 	Tuesday   bool
 	Wednesday bool
@@ -79,54 +79,54 @@ type Calendar struct {
 	Friday    bool
 	Saturday  bool
 	Sunday    bool
-	StartDate time.Time
-	EndDate   time.Time
+	StartDate time.Time `gorm:"type:date"` 
+	EndDate   time.Time `gorm:"type:date"` 
 }
 
 type CalendarDate struct {
 	gorm.Model
 	CityId        string
-	ServiceId     string
-	Date          time.Time
+	ServiceId     string    `gorm:"index:idx_service_date;uniqueIndex:idx_city_service_date"` 
+	Date          time.Time `gorm:"type:date;index:idx_service_date;uniqueIndex:idx_city_service_date"`
 	ExceptionType int
 }
 
 type Shape struct {
 	gorm.Model
 	CityId          string
-	ShapeId         string
+	ShapeId         string `gorm:"index:idx_shape;uniqueIndex:idx_shape_sequence"` 
 	ShapePtLat      float64
 	ShapePtLon      float64
-	ShapePtSequence int
+	ShapePtSequence int `gorm:"uniqueIndex:idx_shape_sequence"` 
 }
 
 func DbRouteToRoute(dbRoute Route) models.Route {
 	return models.Route{
 		RouteId:          dbRoute.RouteId,
-		AgencyId:         dbRoute.AgencyId.String,
-		RouteShortName:   dbRoute.RouteShortName.String,
-		RouteLongName:    dbRoute.RouteLongName.String,
-		RouteDescription: dbRoute.RouteDescription.String,
-		RouteType:        models.Type(dbRoute.RouteType.Int16),
-		RouteUrl:         dbRoute.RouteUrl.String,
-		RouteColor:       dbRoute.RouteColor.String,
-		RouteTextColor:   dbRoute.RouteTextColor.String,
+		AgencyId:         nullStringToString(dbRoute.AgencyId),
+		RouteShortName:   nullStringToString(dbRoute.RouteShortName),
+		RouteLongName:    nullStringToString(dbRoute.RouteLongName),
+		RouteDescription: nullStringToString(dbRoute.RouteDescription),
+		RouteType:        models.Type(nullInt16ToInt16(dbRoute.RouteType)),
+		RouteUrl:         nullStringToString(dbRoute.RouteUrl),
+		RouteColor:       nullStringToString(dbRoute.RouteColor),
+		RouteTextColor:   nullStringToString(dbRoute.RouteTextColor),
 	}
 }
 
 func DbStopToStop(dbStop Stop) models.Stop {
 	return models.Stop{
 		StopId:             dbStop.StopId,
-		StopCode:           dbStop.StopCode.String,
-		StopName:           dbStop.StopName.String,
-		StopLat:            dbStop.StopLat.Float64,
-		StopLon:            dbStop.StopLon.Float64,
-		StopUrl:            dbStop.StopUrl.String,
-		ZoneId:             dbStop.ZoneId.String,
-		ParentStation:      dbStop.ParentStation.String,
-		PlatformCode:       dbStop.PlatformCode.String,
-		WheelchairBoarding: models.Accessibility(dbStop.WheelchairBoarding.Int16),
-		LocationType:       models.Location(dbStop.LocationType.Int16),
+		StopCode:           nullStringToString(dbStop.StopCode),
+		StopName:           nullStringToString(dbStop.StopName),
+		StopLat:            nullFloat64ToFloat64(dbStop.StopLat),
+		StopLon:            nullFloat64ToFloat64(dbStop.StopLon),
+		StopUrl:            nullStringToString(dbStop.StopUrl),
+		ZoneId:             nullStringToString(dbStop.ZoneId),
+		ParentStation:      nullStringToString(dbStop.ParentStation),
+		PlatformCode:       nullStringToString(dbStop.PlatformCode),
+		WheelchairBoarding: models.Accessibility(nullInt16ToInt16(dbStop.WheelchairBoarding)),
+		LocationType:       models.Location(nullInt16ToInt16(dbStop.LocationType)),
 	}
 }
 
@@ -135,13 +135,13 @@ func DbTripToTrip(dbTrip Trip) models.Trip {
 		TripId:               dbTrip.TripId,
 		RouteId:              dbTrip.RouteId,
 		ServiceId:            dbTrip.ServiceId,
-		BlockId:              dbTrip.BlockId.String,
-		TripHeadsign:         dbTrip.TripHeadsign.String,
-		TripShortName:        dbTrip.TripShortName.String,
-		DirectionId:          models.Direction(dbTrip.DirectionId.Int16),
-		ShapeId:              dbTrip.ShapeId.String,
-		WheelchairAccessible: models.Accessibility(dbTrip.WheelchairAccessible.Int16),
-		BikeAccessible:       models.Accessibility(dbTrip.BikeAccessible.Int16),
+		BlockId:              nullStringToString(dbTrip.BlockId),
+		TripHeadsign:         nullStringToString(dbTrip.TripHeadsign),
+		TripShortName:        nullStringToString(dbTrip.TripShortName),
+		DirectionId:          models.Direction(nullInt16ToInt16(dbTrip.DirectionId)),
+		ShapeId:              nullStringToString(dbTrip.ShapeId),
+		WheelchairAccessible: models.Accessibility(nullInt16ToInt16(dbTrip.WheelchairAccessible)),
+		BikeAccessible:       models.Accessibility(nullInt16ToInt16(dbTrip.BikeAccessible)),
 	}
 }
 
@@ -154,8 +154,8 @@ func DbDepartureToDeparture(dbDep Departure) models.Departure {
 		ArrivalTime:   dbDep.ArrivalTime,
 		DepartureTime: dbDep.DepartureTime,
 		StopSequence:  dbDep.StopSequence,
-		PickupType:    models.PickupOrDropoff(dbDep.PickupType.Int16),
-		DropoffType:   models.PickupOrDropoff(dbDep.DropoffType.Int16),
+		PickupType:    models.PickupOrDropoff(nullInt16ToInt16(dbDep.PickupType)),
+		DropoffType:   models.PickupOrDropoff(nullInt16ToInt16(dbDep.DropoffType)),
 	}
 }
 
@@ -195,14 +195,14 @@ func RouteToDbRoute(route models.Route, cityId string) Route {
 	return Route{
 		CityId:           cityId,
 		RouteId:          route.RouteId,
-		AgencyId:         sql.NullString{String: route.AgencyId, Valid: route.AgencyId != ""},
-		RouteShortName:   sql.NullString{String: route.RouteShortName, Valid: route.RouteShortName != ""},
-		RouteLongName:    sql.NullString{String: route.RouteLongName, Valid: route.RouteLongName != ""},
-		RouteDescription: sql.NullString{String: route.RouteDescription, Valid: route.RouteDescription != ""},
+		AgencyId:         stringToNullString(route.AgencyId),
+		RouteShortName:   stringToNullString(route.RouteShortName),
+		RouteLongName:    stringToNullString(route.RouteLongName),
+		RouteDescription: stringToNullString(route.RouteDescription),
 		RouteType:        sql.NullInt16{Int16: int16(route.RouteType), Valid: true},
-		RouteUrl:         sql.NullString{String: route.RouteUrl, Valid: route.RouteUrl != ""},
-		RouteColor:       sql.NullString{String: route.RouteColor, Valid: route.RouteColor != ""},
-		RouteTextColor:   sql.NullString{String: route.RouteTextColor, Valid: route.RouteTextColor != ""},
+		RouteUrl:         stringToNullString(route.RouteUrl),
+		RouteColor:       stringToNullString(route.RouteColor),
+		RouteTextColor:   stringToNullString(route.RouteTextColor),
 	}
 }
 
@@ -210,14 +210,14 @@ func StopToDbStop(stop models.Stop, cityId string) Stop {
 	return Stop{
 		CityId:             cityId,
 		StopId:             stop.StopId,
-		StopCode:           sql.NullString{String: stop.StopCode, Valid: stop.StopCode != ""},
-		StopName:           sql.NullString{String: stop.StopName, Valid: stop.StopName != ""},
+		StopCode:           stringToNullString(stop.StopCode),
+		StopName:           stringToNullString(stop.StopName),
 		StopLat:            sql.NullFloat64{Float64: stop.StopLat, Valid: true},
 		StopLon:            sql.NullFloat64{Float64: stop.StopLon, Valid: true},
-		StopUrl:            sql.NullString{String: stop.StopUrl, Valid: stop.StopUrl != ""},
-		ZoneId:             sql.NullString{String: stop.ZoneId, Valid: stop.ZoneId != ""},
-		ParentStation:      sql.NullString{String: stop.ParentStation, Valid: stop.ParentStation != ""},
-		PlatformCode:       sql.NullString{String: stop.PlatformCode, Valid: stop.PlatformCode != ""},
+		StopUrl:            stringToNullString(stop.StopUrl),
+		ZoneId:             stringToNullString(stop.ZoneId),
+		ParentStation:      stringToNullString(stop.ParentStation),
+		PlatformCode:       stringToNullString(stop.PlatformCode),
 		WheelchairBoarding: sql.NullInt16{Int16: int16(stop.WheelchairBoarding), Valid: true},
 		LocationType:       sql.NullInt16{Int16: int16(stop.LocationType), Valid: true},
 	}
@@ -229,11 +229,11 @@ func TripToDbTrip(trip models.Trip, cityId string) Trip {
 		TripId:               trip.TripId,
 		RouteId:              trip.RouteId,
 		ServiceId:            trip.ServiceId,
-		BlockId:              sql.NullString{String: trip.BlockId, Valid: trip.BlockId != ""},
-		TripHeadsign:         sql.NullString{String: trip.TripHeadsign, Valid: trip.TripHeadsign != ""},
-		TripShortName:        sql.NullString{String: trip.TripShortName, Valid: trip.TripShortName != ""},
+		BlockId:              stringToNullString(trip.BlockId),
+		TripHeadsign:         stringToNullString(trip.TripHeadsign),
+		TripShortName:        stringToNullString(trip.TripShortName),
 		DirectionId:          sql.NullInt16{Int16: int16(trip.DirectionId), Valid: true},
-		ShapeId:              sql.NullString{String: trip.ShapeId, Valid: trip.ShapeId != ""},
+		ShapeId:              stringToNullString(trip.ShapeId),
 		WheelchairAccessible: sql.NullInt16{Int16: int16(trip.WheelchairAccessible), Valid: true},
 		BikeAccessible:       sql.NullInt16{Int16: int16(trip.BikeAccessible), Valid: true},
 	}
@@ -285,4 +285,29 @@ func ShapeToDbShape(shape models.Shape, cityId string) Shape {
 		ShapePtLon:      shape.ShapePtLon,
 		ShapePtSequence: shape.ShapePtSequence,
 	}
+}
+
+func nullStringToString(ns sql.NullString) string {
+	if ns.Valid {
+		return ns.String
+	}
+	return ""
+}
+
+func stringToNullString(s string) sql.NullString {
+	return sql.NullString{String: s, Valid: s != ""}
+}
+
+func nullInt16ToInt16(ni sql.NullInt16) int16 {
+	if ni.Valid {
+		return ni.Int16
+	}
+	return 0
+}
+
+func nullFloat64ToFloat64(nf sql.NullFloat64) float64 {
+	if nf.Valid {
+		return nf.Float64
+	}
+	return 0.0
 }
