@@ -6,7 +6,6 @@ import (
 	"encoding/csv"
 	"io"
 	"io/fs"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -142,20 +141,6 @@ func parseUint(s string) uint8 {
 func parseInt(s string) int {
 	v, _ := strconv.Atoi(s)
 	return v
-}
-
-func parseGTFSTime(s string) int64 {
-	parts := strings.Split(s, ":")
-	if len(parts) != 3 {
-		return 0
-	}
-	hours, _ := strconv.Atoi(parts[0])
-	minutes, _ := strconv.Atoi(parts[1])
-	seconds, _ := strconv.Atoi(parts[2])
-
-	now := time.Now()
-	midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	return midnight.Add(time.Duration(hours)*time.Hour + time.Duration(minutes)*time.Minute + time.Duration(seconds)*time.Second).Unix()
 }
 
 func GetStops(data []byte) []models.Stop {
@@ -583,117 +568,4 @@ func ProcessShapesChunked(data []byte, batchSize int, callback func(shapes []mod
 		}
 		callback(shapes)
 	})
-}
-
-func GetShapeById(id string, shapes []models.Shape) []models.Shape {
-	shps := make([]models.Shape, 0)
-	for _, shape := range shapes {
-		if shape.ShapeId == id {
-			shps = append(shps, shape)
-		}
-	}
-	sort.Slice(shps, func(i, j int) bool {
-		return shps[i].ShapePtSequence < shps[j].ShapePtSequence
-	})
-	return shps
-}
-
-func GetDeparturesForStop(allDepartures []models.Departure, stop string) []models.Departure {
-	deps := make([]models.Departure, 0)
-	for _, departure := range allDepartures {
-		if departure.StopId == stop {
-			deps = append(deps, departure)
-		}
-	}
-	return deps
-}
-
-func GetActiveServicesForDate(date time.Time, calendars []models.Calendar, calendarDates []models.CalendarDate) map[string]bool {
-	activeServices := make(map[string]bool)
-	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-
-	if calendars != nil {
-		for _, cal := range calendars {
-			if date.Before(cal.StartDate) || date.After(cal.EndDate) {
-				continue
-			}
-			var runs bool
-			switch date.Weekday() {
-			case time.Monday:
-				runs = cal.Monday
-			case time.Tuesday:
-				runs = cal.Tuesday
-			case time.Wednesday:
-				runs = cal.Wednesday
-			case time.Thursday:
-				runs = cal.Thursday
-			case time.Friday:
-				runs = cal.Friday
-			case time.Saturday:
-				runs = cal.Saturday
-			case time.Sunday:
-				runs = cal.Sunday
-			}
-			if runs {
-				activeServices[cal.ServiceId] = true
-			}
-		}
-	}
-
-	if calendarDates != nil {
-		for _, cd := range calendarDates {
-			cdDate := time.Date(cd.Date.Year(), cd.Date.Month(), cd.Date.Day(), 0, 0, 0, 0, cd.Date.Location())
-			if !cdDate.Equal(date) {
-				continue
-			}
-			switch cd.ExceptionType {
-			case models.SERVICE_ADDED:
-				activeServices[cd.ServiceId] = true
-			case models.SERVICE_REMOVED:
-				delete(activeServices, cd.ServiceId)
-			}
-		}
-	}
-	return activeServices
-}
-
-func GetDeparturesForStopToday(
-	stop string,
-	calendars []models.Calendar,
-	calendarDates []models.CalendarDate,
-	allDepartures []models.Departure,
-	trips []models.Trip,
-) []models.Departure {
-	today := time.Now()
-	return GetDeparturesForStopOnDate(stop, today, calendars, calendarDates, allDepartures, trips)
-}
-
-func GetDeparturesForStopOnDate(
-	stop string,
-	date time.Time,
-	calendars []models.Calendar,
-	calendarDates []models.CalendarDate,
-	allDepartures []models.Departure,
-	trips []models.Trip,
-) []models.Departure {
-	activeServices := GetActiveServicesForDate(date, calendars, calendarDates)
-
-	tripToService := make(map[string]string)
-	for _, trip := range trips {
-		tripToService[trip.TripId] = trip.ServiceId
-	}
-
-	everyDeparture := GetDeparturesForStop(allDepartures, stop)
-
-	var departures []models.Departure
-	for _, dep := range everyDeparture {
-		serviceId, exists := tripToService[dep.TripId]
-		if !exists {
-			continue
-		}
-		if activeServices[serviceId] {
-			departures = append(departures, dep)
-		}
-	}
-	return departures
 }
