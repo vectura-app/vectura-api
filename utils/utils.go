@@ -24,49 +24,60 @@ func gostfu(err error) {
 	}
 }
 
-func LoadCitiesFromYAML(filename string) []CityConfig {
+// Helper function to load config from YAML
+func loadConfig() (*Config, error) {
+	filename := "/data/cities.yaml"
 	data, err := os.ReadFile(filename)
 	if err != nil {
-		panic(err)
+		// Try fallback location
+		filename = "cities.yaml"
+		data, err = os.ReadFile(filename)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read cities.yaml from both locations: %w", err)
+		}
 	}
 
 	var config Config
 	err = yaml.Unmarshal(data, &config)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to unmarshal YAML: %w", err)
 	}
 
+	return &config, nil
+}
+
+func LoadCitiesFromYAML() []CityConfig {
+	config, err := loadConfig()
+	gostfu(err)
 	return config.SupportedCities
 }
 
-func GetCityIDIndex(filename string) []string {
-	data, err := os.ReadFile(filename)
+func GetCityIDIndex() []string {
+	config, err := loadConfig()
+	gostfu(err)
+
 	var idx []string
-	gostfu(err)
-
-	var config Config
-	err = yaml.Unmarshal(data, &config)
-	gostfu(err)
-
 	for _, city := range config.SupportedCities {
 		idx = append(idx, city.ID)
 	}
-
 	return idx
 }
 
 func FetchGTFS(url string) ([]byte, error) {
 	resp, err := http.Get(url)
-
-	gostfu(err)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch GTFS: %w", err)
+	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	data, err := io.ReadAll(resp.Body)
-
-	gostfu(err)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
 
 	return data, nil
 }

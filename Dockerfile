@@ -29,9 +29,6 @@ WORKDIR /app
 # Copy the binary from builder stage
 COPY --from=builder /app/vectura-api .
 
-# Copy cities.yaml config file
-COPY --from=builder /app/cities.yaml .
-
 # Make sure the binary is executable
 RUN chmod +x vectura-api
 

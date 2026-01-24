@@ -13,8 +13,8 @@ import (
 	"gorm.io/gorm"
 )
 
-var SupportedCities = utils.LoadCitiesFromYAML("cities.yaml")
-var SCIdx = utils.GetCityIDIndex("cities.yaml")
+var SupportedCities = utils.LoadCitiesFromYAML()
+var SCIdx = utils.GetCityIDIndex()
 
 var cityData = make(map[string]*models.GTFSData)
 var cityDataMutex sync.RWMutex

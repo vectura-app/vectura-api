@@ -10,7 +10,7 @@ import (
 )
 
 func PreloadCities(db *gorm.DB) {
-	cities := utils.LoadCitiesFromYAML("cities.yaml")
+	cities := utils.LoadCitiesFromYAML()
 
 	// Fuck the entire db
 	db.Migrator().DropTable(
