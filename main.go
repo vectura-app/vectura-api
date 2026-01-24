@@ -6,7 +6,8 @@ import (
 	"git.marceeli.ovh/vectura/vectura-api/api"
 	"git.marceeli.ovh/vectura/vectura-api/database"
 	"github.com/joho/godotenv"
-	"gorm.io/driver/mysql"
+
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -33,11 +34,11 @@ func loadDB(dsn string) *gorm.DB {
 	)
 
 	if dsn != "" {
-		db, err = gorm.Open(mysql.New(mysql.Config{
-			DSN:               dsn,
-			DefaultStringSize: 255,
+		db, err = gorm.Open(postgres.New(postgres.Config{
+			DSN: dsn,
 		}), &gorm.Config{
 			DisableForeignKeyConstraintWhenMigrating: true,
+			Logger:                                   logger.Default.LogMode(logger.Error),
 		})
 	} else {
 		db, err = gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
