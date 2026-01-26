@@ -93,6 +93,7 @@ func parseCSV(file fs.File, callback func(record []string, idxMap map[string]int
 
 	reader.ReuseRecord = true
 	reader.LazyQuotes = true
+	reader.FieldsPerRecord = -1
 
 	header, err := reader.Read()
 	if err != nil {
