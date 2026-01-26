@@ -48,11 +48,15 @@ func PreloadCities(db *gorm.DB) {
 		}
 		db.CreateInBatches(dbStops, limit)
 
+		dbStops = nil
+
 		var dbRoutes []Route
 		for _, route := range parser.GetRoutes(data) {
 			dbRoutes = append(dbRoutes, RouteToDbRoute(route, city.ID))
 		}
 		db.CreateInBatches(dbRoutes, limit)
+
+		dbRoutes = nil
 
 		var dbTrips []Trip
 		for _, trip := range parser.GetTrips(data) {
@@ -60,11 +64,17 @@ func PreloadCities(db *gorm.DB) {
 		}
 		db.CreateInBatches(dbTrips, limit)
 
-		var dbDepartures []Departure
-		for _, dep := range parser.GetDepartures(data) {
-			dbDepartures = append(dbDepartures, DepartureToDbDeparture(dep, city.ID))
-		}
-		db.CreateInBatches(dbDepartures, limit)
+		dbTrips = nil
+
+		parser.ProcessDeparturesChunked(data, 7500, func(departures []models.Departure) {
+			if len(departures) > 0 {
+				var dbDepartures []Departure
+				for _, dep := range departures {
+					dbDepartures = append(dbDepartures, DepartureToDbDeparture(dep, city.ID))
+				}
+				db.CreateInBatches(dbDepartures, limit)
+			}
+		})
 
 		var dbCalendars []Calendar
 		for _, cal := range parser.GetCalendar(data) {
@@ -72,17 +82,23 @@ func PreloadCities(db *gorm.DB) {
 		}
 		db.CreateInBatches(dbCalendars, limit)
 
+		dbCalendars = nil
+
 		var dbCalendarDates []CalendarDate
 		for _, cd := range parser.GetCalendarDates(data) {
 			dbCalendarDates = append(dbCalendarDates, CalendarDateToDbCalendarDate(cd, city.ID))
 		}
 		db.CreateInBatches(dbCalendarDates, limit)
 
+		dbCalendarDates = nil
+
 		var dbShapes []Shape
 		for _, shape := range parser.GetShapes(data) {
 			dbShapes = append(dbShapes, ShapeToDbShape(shape, city.ID))
 		}
 		db.CreateInBatches(dbShapes, limit)
+
+		dbShapes = nil
 
 		// Clear the downloaded data to help GC
 		data = nil

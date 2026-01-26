@@ -48,6 +48,46 @@ func intern(s string) string {
 	return sCopy
 }
 
+func parseCSVChunked(file fs.File, batchSize int, callback func(records [][]string, idxMap map[string]int)) {
+	reader := csv.NewReader(file)
+
+	reader.ReuseRecord = true
+	reader.LazyQuotes = true
+
+	header, err := reader.Read()
+	if err != nil {
+		return
+	}
+
+	idxMap := make(map[string]int, len(header))
+	for i, h := range header {
+		idxMap[h] = i
+	}
+
+	var batch [][]string
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		gostfu(err)
+
+		// Make a copy of the record since ReuseRecord is true
+		recordCopy := make([]string, len(record))
+		copy(recordCopy, record)
+
+		batch = append(batch, recordCopy)
+		if len(batch) >= batchSize {
+			callback(batch, idxMap)
+			batch = make([][]string, 0, batchSize)
+		}
+	}
+
+	if len(batch) > 0 {
+		callback(batch, idxMap)
+	}
+}
+
 func parseCSV(file fs.File, callback func(record []string, idxMap map[string]int)) {
 	reader := csv.NewReader(file)
 
@@ -319,4 +359,29 @@ func GetShapes(data []byte) []models.Shape {
 	})
 
 	return shapes
+}
+
+func ProcessDeparturesChunked(data []byte, batchSize int, callback func(departures []models.Departure)) {
+	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	gostfu(err)
+
+	file, _ := zipReader.Open("stop_times.txt")
+	defer file.Close()
+
+	parseCSVChunked(file, batchSize, func(records [][]string, idx map[string]int) {
+		var departures []models.Departure
+		for _, row := range records {
+			departure := models.Departure{
+				TripId:        intern(getVal(row, idx, "trip_id")),
+				StopId:        intern(getVal(row, idx, "stop_id")),
+				ArrivalTime:   intern(getVal(row, idx, "arrival_time")),
+				DepartureTime: intern(getVal(row, idx, "departure_time")),
+				StopSequence:  parseInt(getVal(row, idx, "stop_sequence")),
+				PickupType:    models.PickupOrDropoff(parseUint(getVal(row, idx, "pickup_type"))),
+				DropoffType:   models.PickupOrDropoff(parseUint(getVal(row, idx, "drop_off_type"))),
+			}
+			departures = append(departures, departure)
+		}
+		callback(departures)
+	})
 }
