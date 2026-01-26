@@ -42,82 +42,13 @@ func PreloadCities(db *gorm.DB) {
 
 		limit := 2000
 
-		// Process stops in chunks
-		parser.ProcessStopsChunked(data, 1250, func(stops []models.Stop) {
-			if len(stops) > 0 {
-				var dbStops []Stop
-				for _, stop := range stops {
-					dbStops = append(dbStops, StopToDbStop(stop, city.ID))
-				}
-				db.CreateInBatches(dbStops, limit)
-			}
-		})
-
-		// Process routes in chunks
-		parser.ProcessRoutesChunked(data, 1500, func(routes []models.Route) {
-			if len(routes) > 0 {
-				var dbRoutes []Route
-				for _, route := range routes {
-					dbRoutes = append(dbRoutes, RouteToDbRoute(route, city.ID))
-				}
-				db.CreateInBatches(dbRoutes, limit)
-			}
-		})
-
-		// Process trips in chunks
-		parser.ProcessTripsChunked(data, 750, func(trips []models.Trip) {
-			if len(trips) > 0 {
-				var dbTrips []Trip
-				for _, trip := range trips {
-					dbTrips = append(dbTrips, TripToDbTrip(trip, city.ID))
-				}
-				db.CreateInBatches(dbTrips, limit)
-			}
-		})
-
-		// Process departures in smaller chunks (this is usually the largest dataset)
-		parser.ProcessDeparturesChunked(data, 750, func(departures []models.Departure) {
-			if len(departures) > 0 {
-				var dbDepartures []Departure
-				for _, dep := range departures {
-					dbDepartures = append(dbDepartures, DepartureToDbDeparture(dep, city.ID))
-				}
-				db.CreateInBatches(dbDepartures, limit)
-			}
-		})
-
-		// Process calendars in chunks
-		parser.ProcessCalendarsChunked(data, 1000, func(calendars []models.Calendar) {
-			if len(calendars) > 0 {
-				var dbCalendars []Calendar
-				for _, cal := range calendars {
-					dbCalendars = append(dbCalendars, CalendarToDbCalendar(cal, city.ID))
-				}
-				db.CreateInBatches(dbCalendars, limit)
-			}
-		})
-
-		// Process calendar dates in chunks
-		parser.ProcessCalendarDatesChunked(data, 1750, func(calendarDates []models.CalendarDate) {
-			if len(calendarDates) > 0 {
-				var dbCalendarDates []CalendarDate
-				for _, cd := range calendarDates {
-					dbCalendarDates = append(dbCalendarDates, CalendarDateToDbCalendarDate(cd, city.ID))
-				}
-				db.CreateInBatches(dbCalendarDates, limit)
-			}
-		})
-
-		// Process shapes in chunks
-		parser.ProcessShapesChunked(data, 1500, func(shapes []models.Shape) {
-			if len(shapes) > 0 {
-				var dbShapes []Shape
-				for _, shape := range shapes {
-					dbShapes = append(dbShapes, ShapeToDbShape(shape, city.ID))
-				}
-				db.CreateInBatches(dbShapes, limit)
-			}
-		})
+		db.CreateInBatches(parser.GetStops(data), limit)
+		db.CreateInBatches(parser.GetRoutes(data), limit)
+		db.CreateInBatches(parser.GetTrips(data), limit)
+		db.CreateInBatches(parser.GetDepartures(data), limit)
+		db.CreateInBatches(parser.GetCalendar(data), limit)
+		db.CreateInBatches(parser.GetCalendarDates(data), limit)
+		db.CreateInBatches(parser.GetShapes(data), limit)
 
 		// Clear the downloaded data to help GC
 		data = nil
