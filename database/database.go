@@ -7,6 +7,7 @@ import (
 	"git.marceeli.ovh/vectura/vectura-api/parser"
 	"git.marceeli.ovh/vectura/vectura-api/utils"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func PreloadCities(db *gorm.DB) {
@@ -46,7 +47,7 @@ func PreloadCities(db *gorm.DB) {
 		for _, stop := range parser.GetStops(data) {
 			dbStops = append(dbStops, StopToDbStop(stop, city.ID))
 		}
-		db.CreateInBatches(dbStops, limit)
+		db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(dbStops, limit)
 
 		dbStops = nil
 
@@ -54,7 +55,7 @@ func PreloadCities(db *gorm.DB) {
 		for _, route := range parser.GetRoutes(data) {
 			dbRoutes = append(dbRoutes, RouteToDbRoute(route, city.ID))
 		}
-		db.CreateInBatches(dbRoutes, limit)
+		db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(dbRoutes, limit)
 
 		dbRoutes = nil
 
@@ -62,7 +63,7 @@ func PreloadCities(db *gorm.DB) {
 		for _, trip := range parser.GetTrips(data) {
 			dbTrips = append(dbTrips, TripToDbTrip(trip, city.ID))
 		}
-		db.CreateInBatches(dbTrips, limit)
+		db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(dbTrips, limit)
 
 		dbTrips = nil
 
@@ -72,7 +73,7 @@ func PreloadCities(db *gorm.DB) {
 				for _, dep := range departures {
 					dbDepartures = append(dbDepartures, DepartureToDbDeparture(dep, city.ID))
 				}
-				db.CreateInBatches(dbDepartures, limit)
+				db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(dbDepartures, limit)
 			}
 		})
 
@@ -80,7 +81,7 @@ func PreloadCities(db *gorm.DB) {
 		for _, cal := range parser.GetCalendar(data) {
 			dbCalendars = append(dbCalendars, CalendarToDbCalendar(cal, city.ID))
 		}
-		db.CreateInBatches(dbCalendars, limit)
+		db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(dbCalendars, limit)
 
 		dbCalendars = nil
 
@@ -88,7 +89,7 @@ func PreloadCities(db *gorm.DB) {
 		for _, cd := range parser.GetCalendarDates(data) {
 			dbCalendarDates = append(dbCalendarDates, CalendarDateToDbCalendarDate(cd, city.ID))
 		}
-		db.CreateInBatches(dbCalendarDates, limit)
+		db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(dbCalendarDates, limit)
 
 		dbCalendarDates = nil
 
@@ -96,7 +97,7 @@ func PreloadCities(db *gorm.DB) {
 		for _, shape := range parser.GetShapes(data) {
 			dbShapes = append(dbShapes, ShapeToDbShape(shape, city.ID))
 		}
-		db.CreateInBatches(dbShapes, limit)
+		db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(dbShapes, limit)
 
 		dbShapes = nil
 
