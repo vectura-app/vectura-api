@@ -1,4 +1,4 @@
 *.db
 vectura-api
 *.env
-cities.yaml
+*.yaml
