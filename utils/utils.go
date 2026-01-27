@@ -63,21 +63,19 @@ func GetCityIDIndex() []string {
 	return idx
 }
 
-func FetchGTFS(url string) ([]byte, error) {
+func SaveGTFS(url string, filePath string) error {
+	out, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch GTFS: %w", err)
+		return err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	data, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	return data, nil
+	_, err = io.Copy(out, resp.Body)
+	return err
 }

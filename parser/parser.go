@@ -2,7 +2,6 @@ package parser
 
 import (
 	"archive/zip"
-	"bytes"
 	"encoding/csv"
 	"io"
 	"io/fs"
@@ -146,10 +145,7 @@ func parseInt(s string) int {
 	return v
 }
 
-func GetStops(data []byte) []models.Stop {
-	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	gostfu(err)
-
+func GetStops(zipReader *zip.ReadCloser) []models.Stop {
 	file, _ := zipReader.Open("stops.txt")
 	defer file.Close()
 
@@ -176,10 +172,7 @@ func GetStops(data []byte) []models.Stop {
 	return stops
 }
 
-func GetRoutes(data []byte) []models.Route {
-	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	gostfu(err)
-
+func GetRoutes(zipReader *zip.ReadCloser) []models.Route {
 	file, _ := zipReader.Open("routes.txt")
 	defer file.Close()
 
@@ -204,10 +197,7 @@ func GetRoutes(data []byte) []models.Route {
 	return routes
 }
 
-func GetTrips(data []byte) []models.Trip {
-	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	gostfu(err)
-
+func GetTrips(zipReader *zip.ReadCloser) []models.Trip {
 	file, _ := zipReader.Open("trips.txt")
 	defer file.Close()
 
@@ -233,10 +223,7 @@ func GetTrips(data []byte) []models.Trip {
 	return trips
 }
 
-func GetDepartures(data []byte) []models.Departure {
-	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	gostfu(err)
-
+func GetDepartures(zipReader *zip.ReadCloser) []models.Departure {
 	file, _ := zipReader.Open("stop_times.txt")
 	defer file.Close()
 
@@ -259,10 +246,7 @@ func GetDepartures(data []byte) []models.Departure {
 	return departures
 }
 
-func GetCalendar(data []byte) []models.Calendar {
-	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	gostfu(err)
-
+func GetCalendar(zipReader *zip.ReadCloser) []models.Calendar {
 	file, err := zipReader.Open("calendar.txt")
 	if err != nil {
 		if err.Error() == "open calendar.txt: file does not exist" {
@@ -299,10 +283,7 @@ func GetCalendar(data []byte) []models.Calendar {
 	return calendars
 }
 
-func GetCalendarDates(data []byte) []models.CalendarDate {
-	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	gostfu(err)
-
+func GetCalendarDates(zipReader *zip.ReadCloser) []models.CalendarDate {
 	file, err := zipReader.Open("calendar_dates.txt")
 	if err != nil {
 		if err.Error() == "open calendar_dates.txt: file does not exist" {
@@ -332,10 +313,7 @@ func GetCalendarDates(data []byte) []models.CalendarDate {
 	return calendarDates
 }
 
-func GetShapes(data []byte) []models.Shape {
-	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	gostfu(err)
-
+func GetShapes(zipReader *zip.ReadCloser) []models.Shape {
 	file, err := zipReader.Open("shapes.txt")
 	if err != nil {
 		if err.Error() == "open shapes.txt: file does not exist" {
@@ -362,10 +340,7 @@ func GetShapes(data []byte) []models.Shape {
 	return shapes
 }
 
-func ProcessDeparturesChunked(data []byte, batchSize int, callback func(departures []models.Departure)) {
-	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	gostfu(err)
-
+func ProcessDeparturesChunked(zipReader *zip.ReadCloser, batchSize int, callback func(departures []models.Departure)) {
 	file, _ := zipReader.Open("stop_times.txt")
 	defer file.Close()
 

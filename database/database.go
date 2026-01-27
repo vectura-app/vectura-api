@@ -1,6 +1,8 @@
 package database
 
 import (
+	"archive/zip"
+	"fmt"
 	"time"
 
 	"git.marceeli.ovh/vectura/vectura-api/models"
@@ -36,7 +38,13 @@ func PreloadCities(db *gorm.DB) {
 	)
 
 	for _, city := range cities {
-		data, err := utils.FetchGTFS(city.URL)
+		filePath := fmt.Sprintf("/tmp/%s.zip", city.ID)
+		err := utils.SaveGTFS(city.URL, filePath)
+		if err != nil {
+			panic(err)
+		}
+
+		zipReader, err := zip.OpenReader(filePath)
 		if err != nil {
 			panic(err)
 		}
@@ -44,7 +52,7 @@ func PreloadCities(db *gorm.DB) {
 		limit := 2000
 
 		var dbStops []Stop
-		for _, stop := range parser.GetStops(data) {
+		for _, stop := range parser.GetStops(zipReader) {
 			dbStops = append(dbStops, StopToDbStop(stop, city.ID))
 		}
 		db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(dbStops, limit)
@@ -52,7 +60,7 @@ func PreloadCities(db *gorm.DB) {
 		dbStops = nil
 
 		var dbRoutes []Route
-		for _, route := range parser.GetRoutes(data) {
+		for _, route := range parser.GetRoutes(zipReader) {
 			dbRoutes = append(dbRoutes, RouteToDbRoute(route, city.ID))
 		}
 		db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(dbRoutes, limit)
@@ -60,14 +68,14 @@ func PreloadCities(db *gorm.DB) {
 		dbRoutes = nil
 
 		var dbTrips []Trip
-		for _, trip := range parser.GetTrips(data) {
+		for _, trip := range parser.GetTrips(zipReader) {
 			dbTrips = append(dbTrips, TripToDbTrip(trip, city.ID))
 		}
 		db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(dbTrips, limit)
 
 		dbTrips = nil
 
-		parser.ProcessDeparturesChunked(data, 7500, func(departures []models.Departure) {
+		parser.ProcessDeparturesChunked(zipReader, 15000, func(departures []models.Departure) {
 			if len(departures) > 0 {
 				var dbDepartures []Departure
 				for _, dep := range departures {
@@ -78,7 +86,7 @@ func PreloadCities(db *gorm.DB) {
 		})
 
 		var dbCalendars []Calendar
-		for _, cal := range parser.GetCalendar(data) {
+		for _, cal := range parser.GetCalendar(zipReader) {
 			dbCalendars = append(dbCalendars, CalendarToDbCalendar(cal, city.ID))
 		}
 		db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(dbCalendars, limit)
@@ -86,7 +94,7 @@ func PreloadCities(db *gorm.DB) {
 		dbCalendars = nil
 
 		var dbCalendarDates []CalendarDate
-		for _, cd := range parser.GetCalendarDates(data) {
+		for _, cd := range parser.GetCalendarDates(zipReader) {
 			dbCalendarDates = append(dbCalendarDates, CalendarDateToDbCalendarDate(cd, city.ID))
 		}
 		db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(dbCalendarDates, limit)
@@ -94,15 +102,14 @@ func PreloadCities(db *gorm.DB) {
 		dbCalendarDates = nil
 
 		var dbShapes []Shape
-		for _, shape := range parser.GetShapes(data) {
+		for _, shape := range parser.GetShapes(zipReader) {
 			dbShapes = append(dbShapes, ShapeToDbShape(shape, city.ID))
 		}
 		db.Clauses(clause.OnConflict{DoNothing: true}).CreateInBatches(dbShapes, limit)
 
 		dbShapes = nil
 
-		// Clear the downloaded data to help GC
-		data = nil
+		zipReader.Close()
 
 		// Clear interner cache between cities to prevent memory bloat
 		parser.ClearInterner()
