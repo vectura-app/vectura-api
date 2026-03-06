@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 
@@ -114,6 +115,66 @@ func StartServer(db *gorm.DB) {
 			})
 		}
 
+	})
+
+	r.GET("/api/:city/departures/next", func(c *gin.Context) {
+		cityID := c.Param("city")
+		stopID := c.Query("stop")
+		number := c.Query("number")
+		date := c.Query("date")
+
+		exists := slices.Contains(SCIdx, cityID)
+		if !exists {
+			c.JSON(http.StatusNotFound, gin.H{"error": "City not supported"})
+			return
+		}
+
+		if stopID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"city":  cityID,
+				"error": "You need to specify a stop!",
+			})
+			return
+		}
+
+		if number == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"city":  cityID,
+				"error": "You need to specify a number of departures to return!",
+			})
+			return
+		}
+
+		// Parse the number parameter
+		limit, err := strconv.Atoi(number)
+		if err != nil || limit <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"city":  cityID,
+				"error": "Invalid number parameter. Please provide a positive integer.",
+			})
+			return
+		}
+
+		if date != "" {
+			parsedDate, err := parseDate(date)
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format"})
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"city":       cityID,
+				"date":       date,
+				"number":     number,
+				"departures": database.GetNextDeparturesForStopOnDate(db, cityID, stopID, parsedDate, limit),
+			})
+		} else {
+			c.JSON(http.StatusOK, gin.H{
+				"city":       cityID,
+				"number":     number,
+				"departures": database.GetNextDeparturesForStopOnDate(db, cityID, stopID, time.Now(), limit),
+			})
+		}
 	})
 
 	r.GET("/api/:city/shapes", func(c *gin.Context) {

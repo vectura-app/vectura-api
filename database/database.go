@@ -274,25 +274,68 @@ func GetDeparturesForStopOnDate(db *gorm.DB, city string, stop string, date time
 	)
 
 	services := GetActiveServicesForDate(db, city, date)
-
 	if len(services) == 0 {
 		return deps
 	}
 
-	// Get departures for this stop with preloaded Trip
+	// Extract service IDs from the map for use in SQL IN clause
+	serviceIDs := make([]string, 0, len(services))
+	for id := range services {
+		serviceIDs = append(serviceIDs, id)
+	}
+
+	// Filter by active services in the DB query, avoiding in-memory filtering
 	db.Model(&Departure{}).
-		Table("departures").
 		Preload("Trip.Route").
-		Where("city_id = ?", city).
-		Where("stop_id = ?", stop).
-		Order("departure_time").
+		Joins("JOIN trips ON trips.trip_id = departures.trip_id AND trips.city_id = departures.city_id").
+		Where("departures.city_id = ?", city).
+		Where("departures.stop_id = ?", stop).
+		Where("trips.service_id IN ?", serviceIDs).
+		Order("departures.departure_time").
 		Find(&dbDeps)
 
-	// Filter departures by active services using preloaded Trip
 	for _, dep := range dbDeps {
-		if services[dep.Trip.ServiceId] {
-			deps = append(deps, DbDepartureToDeparture(dep))
-		}
+		deps = append(deps, DbDepartureToDeparture(dep))
+	}
+
+	return deps
+}
+
+func GetNextDeparturesForStopOnDate(db *gorm.DB, city string, stop string, date time.Time, limit int) []models.Departure {
+	var (
+		dbDeps []Departure
+		deps   []models.Departure
+	)
+
+	services := GetActiveServicesForDate(db, city, date)
+	if len(services) == 0 {
+		return deps
+	}
+
+	// Get current time to filter departures
+	currentTime := time.Now()
+	currentTimeStr := currentTime.Format("15:04:05")
+
+	// Extract service IDs from the map for use in SQL IN clause
+	serviceIDs := make([]string, 0, len(services))
+	for id := range services {
+		serviceIDs = append(serviceIDs, id)
+	}
+
+	// Filter by active services and current time in the DB query, avoiding in-memory filtering
+	db.Model(&Departure{}).
+		Preload("Trip.Route").
+		Joins("JOIN trips ON trips.trip_id = departures.trip_id AND trips.city_id = departures.city_id").
+		Where("departures.city_id = ?", city).
+		Where("departures.stop_id = ?", stop).
+		Where("trips.service_id IN ?", serviceIDs).
+		Where("departures.departure_time >= ?", currentTimeStr).
+		Order("departures.departure_time").
+		Limit(limit).
+		Find(&dbDeps)
+
+	for _, dep := range dbDeps {
+		deps = append(deps, DbDepartureToDeparture(dep))
 	}
 
 	return deps
