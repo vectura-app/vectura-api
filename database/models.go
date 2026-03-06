@@ -11,8 +11,8 @@ import (
 type Route struct {
 	gorm.Model
 	CityId           string
-	RouteId          string         `gorm:"uniqueIndex:idx_city_route"` 
-	AgencyId         sql.NullString `gorm:"index"`                      
+	RouteId          string         `gorm:"uniqueIndex:idx_city_route"`
+	AgencyId         sql.NullString `gorm:"index"`
 	RouteShortName   sql.NullString
 	RouteLongName    sql.NullString
 	RouteDescription sql.NullString
@@ -25,14 +25,14 @@ type Route struct {
 type Stop struct {
 	gorm.Model
 	CityId             string
-	StopId             string `gorm:"uniqueIndex:idx_city_stop"` 
+	StopId             string `gorm:"uniqueIndex:idx_city_stop"`
 	StopCode           sql.NullString
-	StopName           sql.NullString `gorm:"index"` 
+	StopName           sql.NullString `gorm:"index"`
 	StopLat            sql.NullFloat64
 	StopLon            sql.NullFloat64
 	StopUrl            sql.NullString
 	ZoneId             sql.NullString
-	ParentStation      sql.NullString `gorm:"index"` 
+	ParentStation      sql.NullString `gorm:"index"`
 	PlatformCode       sql.NullString
 	WheelchairBoarding sql.NullInt16
 	LocationType       sql.NullInt16
@@ -41,15 +41,15 @@ type Stop struct {
 type Trip struct {
 	gorm.Model
 	CityId               string
-	TripId               string `gorm:"uniqueIndex:idx_city_trip"` 
-	RouteId              string `gorm:"index:idx_route"`           
-	Route                Route  `gorm:"foreignKey:RouteId;references:RouteId"`
-	ServiceId            string `gorm:"index:idx_service"` 
+	TripId               string `gorm:"uniqueIndex:idx_city_trip"`
+	RouteId              string `gorm:"index:idx_route"`
+	Route                Route  `gorm:"foreignKey:RouteId,CityId;references:RouteId,CityId"`
+	ServiceId            string `gorm:"index:idx_service"`
 	BlockId              sql.NullString
 	TripHeadsign         sql.NullString
 	TripShortName        sql.NullString
 	DirectionId          sql.NullInt16
-	ShapeId              sql.NullString `gorm:"index"` 
+	ShapeId              sql.NullString `gorm:"index"`
 	WheelchairAccessible sql.NullInt16
 	BikeAccessible       sql.NullInt16
 }
@@ -57,13 +57,13 @@ type Trip struct {
 type Departure struct {
 	gorm.Model
 	CityId        string
-	TripId        string `gorm:"index:idx_trip"`                                    
-	Trip          Trip   `gorm:"foreignKey:TripId;references:TripId"`               
-	StopId        string `gorm:"index:idx_stop;index:idx_stop_departure"`           
-	Stop          Stop   `gorm:"foreignKey:StopId;references:StopId"`               
-	ArrivalTime   string `gorm:"index:idx_arrival"`                                 
-	DepartureTime string `gorm:"index:idx_stop_departure;index:idx_departure_time"` 
-	StopSequence  int    `gorm:"index"`                                             
+	TripId        string `gorm:"index:idx_trip"`
+	Trip          Trip   `gorm:"foreignKey:TripId,CityId;references:TripId,CityId"`
+	StopId        string `gorm:"index:idx_stop;index:idx_stop_departure"`
+	Stop          Stop   `gorm:"foreignKey:StopId,CityId;references:StopId,CityId"`
+	ArrivalTime   string `gorm:"index:idx_arrival"`
+	DepartureTime string `gorm:"index:idx_stop_departure;index:idx_departure_time"`
+	StopSequence  int    `gorm:"index"`
 	PickupType    sql.NullInt16
 	DropoffType   sql.NullInt16
 }
@@ -71,7 +71,7 @@ type Departure struct {
 type Calendar struct {
 	gorm.Model
 	CityId    string
-	ServiceId string `gorm:"uniqueIndex:idx_city_service"` 
+	ServiceId string `gorm:"uniqueIndex:idx_city_service"`
 	Monday    bool
 	Tuesday   bool
 	Wednesday bool
@@ -79,14 +79,14 @@ type Calendar struct {
 	Friday    bool
 	Saturday  bool
 	Sunday    bool
-	StartDate time.Time `gorm:"type:date"` 
-	EndDate   time.Time `gorm:"type:date"` 
+	StartDate time.Time `gorm:"type:date"`
+	EndDate   time.Time `gorm:"type:date"`
 }
 
 type CalendarDate struct {
 	gorm.Model
 	CityId        string
-	ServiceId     string    `gorm:"index:idx_service_date;uniqueIndex:idx_city_service_date"` 
+	ServiceId     string    `gorm:"index:idx_service_date;uniqueIndex:idx_city_service_date"`
 	Date          time.Time `gorm:"type:date;index:idx_service_date;uniqueIndex:idx_city_service_date"`
 	ExceptionType int
 }
@@ -94,10 +94,10 @@ type CalendarDate struct {
 type Shape struct {
 	gorm.Model
 	CityId          string
-	ShapeId         string `gorm:"index:idx_shape;uniqueIndex:idx_shape_sequence"` 
+	ShapeId         string `gorm:"index:idx_shape;uniqueIndex:idx_shape_sequence"`
 	ShapePtLat      float64
 	ShapePtLon      float64
-	ShapePtSequence int `gorm:"uniqueIndex:idx_shape_sequence"` 
+	ShapePtSequence int `gorm:"uniqueIndex:idx_shape_sequence"`
 }
 
 func DbRouteToRoute(dbRoute Route) models.Route {
